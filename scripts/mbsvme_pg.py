@@ -53,7 +53,7 @@ import argparse
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('-d', '--data', type=str, default='pima',
+parser.add_argument('-d', '--data', type=str, default='banana',
 					help='Name of the dataset')
 parser.add_argument('-k','--experts', type=int, default=4,
 					help='Number of Experts for the model')
