@@ -86,7 +86,7 @@ lambd1 = args.reg_val_exp
 lambd2 = args.reg_val_gate
 
 # generative gating: initialization of parameters
-gate = np.random.randn(K, dim)
+gate = init(K, dim, key='kmeans', data=X)
 experts = np.random.randn(K, dim)
 # gate[0, :] = np.zeros(dim)
 

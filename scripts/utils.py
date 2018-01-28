@@ -1,7 +1,9 @@
 import numpy as np
 import scipy.io as spo
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import OneHotEncoder
 
-def read_data(key='synth'):
+def read_data(key='synth', return_split=False):
 	if key == 'synth':
 		train = open('../data/synth.tr','r').read().splitlines()[1:]
 		test = open('../data/synth.te', 'r').read().splitlines()[1:]
@@ -35,12 +37,16 @@ def read_data(key='synth'):
 			yt.append(2 * (entries[-1] == 'Yes') - 1)
 			Xt.append([1.0] + [float(t) for t in entries[:-1] if t != ''])
 
-	if key in ['banana', 'breast_cancer', 'diabetis', 'flare_solar', 'german', 'heart', 'image', 'ringnorm', 'splice', 'image', 'titanic', 'waveform']:
+	if key in ['banana', 'breast_cancer', 'diabetis', 'flare_solar', 'german', 'heart', 'image', 'ringnorm', 'splice', 'titanic', 'waveform']:
 		data = spo.loadmat('../data/benchmarks.mat')[key]
-		rand_idx = np.random.randint(0, 100)
+		
+		# image and splice have 20 splits only, rest have 100 splits
+		if key in ['image', 'splice']:
+			rand_idx = np.random.randint(0, 20)
+		else:
+			rand_idx = np.random.randint(0,100)
 
-		# temporarily restrict to one split
-		split = 42
+		split = rand_idx
 		train_indices = data['train'][0][0][split, :]
 		test_indices = data['test'][0][0][split, :]
 
@@ -61,5 +67,31 @@ def read_data(key='synth'):
 	# the first feature is for the bias, which would std = 0, mean = 1
 	m[0], std[0] = 0., 1.0
 
-	# return train, train labels, test, test labels
-	return (X - m) / std, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
+	# return train, train labels, test, test labels, and split if enabled
+	if return_split == False:
+		return (X - m) / std, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
+	else:
+		return (X - m) / std, np.array(y), (np.array(Xt) - m) / std, np.array(yt), split
+
+def softmaxx(X):
+	cur = np.exp(X.T - np.max(X, axis=1)).T
+	return (cur.T / cur.sum(axis=1) + 1e-6).T
+
+def init(rows, cols, key='gauss', data=None):
+	if key == 'gauss':
+		return np.random.randint(rows, cols)
+
+	elif key == 'kmeans':
+		kmeans = KMeans(n_clusters=rows).fit(data)
+		cluster_ids = kmeans.predict(data)
+		labels = OneHotEncoder(sparse=False).fit_transform(cluster_ids.reshape(len(cluster_ids), 1))
+		
+		weights = np.random.randn(rows, cols)
+		N = data.shape[0]
+
+		for _ in range(50):
+			pred = softmaxx(np.dot(data, weights.T))
+			weights += 0.1 * np.dot((labels - pred).T, data) / N
+
+		print "Accuracy of initialization: " + str(np.mean((np.argmax(softmaxx(np.dot(data, weights.T)), axis=1) == cluster_ids)) * 100)
+		return weights

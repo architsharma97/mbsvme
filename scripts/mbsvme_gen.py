@@ -55,14 +55,16 @@ parser.add_argument('-m', '--max_iters', type=int, default=50,
 					help='Maximum number of iterations')
 parser.add_argument('-r', '--reg_value', type=float, default=1.0,
 					help='Regularization hyperparameter for prior on expert weight vectors')
+parser.add_argument('-f', '--file_write', type=bool, default=False,
+					help='Write results to a file name, makes one file for one dataset')
 args = parser.parse_args()
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # stability
 eps = 1e-6
-delta = 1e-12
+delta = 1e-6
 
-X, y, Xt, yt = read_data(key=args.data)
+X, y, Xt, yt, split = read_data(key=args.data, return_split=True)
 # add preprocessing?
 
 # number of experts 
@@ -120,7 +122,8 @@ for iters in range(max_iters):
 	
 	acc = compute_acc()
 	max_acc = max(max_acc, acc)
-	print "Test accuracy: %f" % (acc)
+	if args.file_write == False:
+		print "Test accuracy: %f" % (acc)
 
 	# M step
 	aux1 = tau_inv * ex_probs
@@ -133,10 +136,14 @@ for iters in range(max_iters):
 		gate_covariance[e, :, :] = np.dot(np.dot(((X.T * Xmask[:,e]).T - gate_mean[e, :]).T, np.diag(ex_probs[:, e])), ((X.T * Xmask[:, e]).T - gate_mean[e, :])) / Nj[e] + eps * np.eye(dim)
 		gate_mean[e, :] = (X.T * ex_probs[:, e] * Xmask[:, e]).sum(axis=1) / Nj[e]
 
-print "\n\n\n\n"
-print "Dataset: " + args.data
-print "Number of experts: " + str(args.experts)
-print "Maximum accuracy achieved: " + str(max_acc)
-print "Data dimensionality: " + str(dim)
-print "Number of training points: " + str(N)
-print "Number of test points: " + str(Xt.shape[0])
+if args.file_write == False:
+	print "\n\n\n\n"
+	print "Dataset: " + args.data
+	print "Number of experts: " + str(args.experts)
+	print "Maximum accuracy achieved: " + str(max_acc)
+	print "Data dimensionality: " + str(dim)
+	print "Number of training points: " + str(N)
+	print "Number of test points: " + str(Xt.shape[0])
+else:
+	f = open("../results/" + str(args.data) + '_gg.txt' , 'a')
+	f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_value) + ", " + str(max_acc) + "\n")
