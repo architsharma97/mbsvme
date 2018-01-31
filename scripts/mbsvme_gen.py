@@ -149,7 +149,7 @@ for iters in range(max_iters):
 			max_val = acc
 			max_acc = compute_acc()
 			if args.file_write == False:
-				print "Test accuracy: %f" % (acc)
+				print "Test accuracy: %f" % (max_acc)
 
 	# M step
 	aux1 = tau_inv * ex_probs
