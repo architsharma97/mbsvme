@@ -60,6 +60,27 @@ def read_data(key='synth', return_split=False):
 		y = y.sum(axis=1)
 		yt = yt.sum(axis=1)
 
+	if key == 'ijcnn':
+		train = open('../data/ijcnn/train.csv','r').read().splitlines()
+		val = open('../data/ijcnn/val.csv', 'r').read().splitlines()
+		test = open('../data/ijcnn/test.csv', 'r').read().splitlines()
+
+		X, y  = [], []
+		for line in train:
+			X.append([1.0] + [float(f) for f in line.split(',')[1:]])
+			y.append(int(float(line.split(',')[0])))
+
+		# split into test and val later
+		Xt, yt = [], []
+		for line in val:
+			Xt.append([1.0] + [float(f) for f in line.split(',')[1:]])
+			yt.append(int(float(line.split(',')[0])))
+
+		for line in test:
+			Xt.append([1.0] + [float(f) for f in line.split(',')[1:]])
+			yt.append(int(float(line.split(',')[0])))
+		
+
 	# basic preprocessing
 	X = np.array(X)
 	m, std = X.mean(axis=0),  X.std(axis=0)

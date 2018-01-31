@@ -64,7 +64,14 @@ args = parser.parse_args()
 eps = 1e-6
 delta = 1e-6
 
-X, y, Xt, yt, split = read_data(key=args.data, return_split=True)
+if args.data == 'ijcnn':
+	X, y, Xt, yt = read_data(key=args.data)
+	# val and test split (predefined values)
+	Xv, yv = Xt[:14990, :], yt[:14990]
+	Xt, yt = Xt[14990:], yt[14990:]
+	split = -1
+else:
+	X, y, Xt, yt, split = read_data(key=args.data, return_split=True)
 # add preprocessing?
 
 # number of experts 
@@ -87,16 +94,27 @@ ex_probs = np.zeros((N, K))
 gate_probs = np.zeros((N, K))
 
 max_acc = -1.0
+max_val = -1.0
 
-def compute_acc():
-	gate_vals = np.zeros((Xt.shape[0], K))
-	for e in range(K):
-		gate_vals[:, e] = gate_prior[e] * multivariate_normal.pdf(Xt, mean=gate_mean[e, :], cov=gate_covariance[e, :, :])
-	gate_vals = (gate_vals.T / (gate_vals.sum(axis=1) + eps)).T
-	pred = 2 * ((np.dot(Xt, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+def compute_acc(key='test'):
+	if key == 'test':
+		gate_vals = np.zeros((Xt.shape[0], K))
+		for e in range(K):
+			gate_vals[:, e] = gate_prior[e] * multivariate_normal.pdf(Xt, mean=gate_mean[e, :], cov=gate_covariance[e, :, :])
+		gate_vals = (gate_vals.T / (gate_vals.sum(axis=1) + eps)).T
+		pred = 2 * ((np.dot(Xt, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+		
+		return np.mean(pred == yt) * 100
 	
-	return np.mean(pred == yt) * 100
-
+	elif key == 'val':
+		gate_vals = np.zeros((Xv.shape[0], K))
+		for e in range(K):
+			gate_vals[:, e] = gate_prior[e] * multivariate_normal.pdf(Xv, mean=gate_mean[e, :], cov=gate_covariance[e, :, :])
+		gate_vals = (gate_vals.T / (gate_vals.sum(axis=1) + eps)).T
+		pred = 2 * ((np.dot(Xv, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+		
+		return np.mean(pred == yv) * 100
+	
 for iters in range(max_iters):
 	
 	# E step
@@ -120,10 +138,18 @@ for iters in range(max_iters):
 	# expected_cll = 0.5 * lambd * LA.norm(experts)**2 + (ex_probs * (pred * (tau_inv + 2) - 0.5 * pred**2 + np.log(gate_probs))).sum()
 	# print "E[CLL]: %f" %(expected_cll), 
 	
-	acc = compute_acc()
-	max_acc = max(max_acc, acc)
-	if args.file_write == False:
-		print "Test accuracy: %f" % (acc)
+	if args.data != 'ijcnn':
+		acc = compute_acc()
+		max_acc = max(max_acc, acc)
+		if args.file_write == False:
+			print "Test accuracy: %f" % (acc)
+	else:
+		acc = compute_acc(key='val')
+		if max_val < acc:
+			max_val = acc
+			max_acc = compute_acc()
+			if args.file_write == False:
+				print "Test accuracy: %f" % (acc)
 
 	# M step
 	aux1 = tau_inv * ex_probs

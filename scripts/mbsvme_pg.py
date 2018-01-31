@@ -72,7 +72,14 @@ args = parser.parse_args()
 eps = 1e-6
 delta = 1e-6
 
-X, y, Xt, yt, split = read_data(key=args.data, return_split=True)
+if args.data == 'ijcnn':
+	X, y, Xt, yt = read_data(key=args.data)
+	# val and test split (predefined values)
+	Xv, yv = Xt[:14990, :], yt[:14990]
+	Xt, yt = Xt[14990:], yt[14990:]
+	split = -1
+else:
+	X, y, Xt, yt, split = read_data(key=args.data, return_split=True)
 # add preprocessing?
 
 # number of experts
@@ -94,16 +101,23 @@ experts = np.random.randn(K, dim)
 ex_probs = np.zeros((N, K))
 
 max_acc = -1.0
+max_val = -1.0
 
 # safer softmax
 def softmax(X):
 	cur = np.exp(X.T - np.max(X, axis=1)).T
 	return (cur.T / cur.sum(axis=1) + delta).T
 
-def compute_acc():
-	gate_vals = softmax(np.dot(Xt, gate.T))
-	pred = 2 * ((np.dot(Xt, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
-	return np.mean(pred == yt) * 100
+def compute_acc(key='test'):
+	if key == 'test':
+		gate_vals = softmax(np.dot(Xt, gate.T))
+		pred = 2 * ((np.dot(Xt, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+		return np.mean(pred == yt) * 100
+	
+	elif key =='val':
+		gate_vals = softmax(np.dot(Xv, gate.T))
+		pred = 2 * ((np.dot(Xv, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+		return np.mean(pred == yv) * 100
 
 for iters in range(max_iters):
 	# E step
@@ -124,10 +138,18 @@ for iters in range(max_iters):
 	Xmask = tau > delta
 	tau_inv = 1./ (tau + delta * (1 - Xmask))
 
-	acc = compute_acc()
-	max_acc = max(max_acc, acc)
-	if args.file_write == False:
-		print "Test accuracy: %f" % (acc)
+	if args.data != 'ijcnn':
+		acc = compute_acc()
+		max_acc = max(max_acc, acc)
+		if args.file_write == False:
+			print "Test accuracy: %f" % (acc)
+	else:
+		acc = compute_acc(key='val')
+		if max_val < acc:
+			max_val = acc
+			max_acc = compute_acc()
+			if args.file_write == False:
+				print "Test accuracy: %f" % (acc)
 
 	# M step
 	aux1 = tau_inv * ex_probs
