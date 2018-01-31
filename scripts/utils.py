@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.io as spo
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import OneHotEncoder
+# from sklearn.cluster import KMeans
+# from sklearn.preprocessing import OneHotEncoder
 
 def read_data(key='synth', return_split=False):
 	if key == 'synth':
@@ -100,7 +100,7 @@ def softmaxx(X):
 
 def init(rows, cols, key='gauss', data=None):
 	if key == 'gauss':
-		return np.random.randint(rows, cols)
+		return np.random.randn(rows, cols)
 
 	elif key == 'kmeans':
 		kmeans = KMeans(n_clusters=rows).fit(data)
