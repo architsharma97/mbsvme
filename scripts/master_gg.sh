@@ -2,7 +2,7 @@
 for dataset in ijcnn
 do
 	echo "running on "$dataset
-	for num in 15
+	for num in 25
 	do	
 		for reg_exp in 1.0 2.0 10.0 5.0 20.0
 		do
