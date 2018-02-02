@@ -57,6 +57,8 @@ parser.add_argument('-r', '--reg_value', type=float, default=1.0,
 					help='Regularization hyperparameter for prior on expert weight vectors')
 parser.add_argument('-f', '--file_write', type=bool, default=False,
 					help='Write results to a file name, makes one file for one dataset')
+parser.add_argument('-p', '--preprocess', type=str, default='gauss',
+					help='Choose preprocessing: "gauss", "standard" or "none"')
 args = parser.parse_args()
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -65,13 +67,16 @@ eps = 1e-6
 delta = 1e-6
 
 if args.data == 'ijcnn':
-	X, y, Xt, yt = read_data(key=args.data)
+	X, y, Xt, yt = read_data(key=args.data, preprocess=args.preprocess)
 	# val and test split (predefined values)
 	Xv, yv = Xt[:14990, :], yt[:14990]
 	Xt, yt = Xt[14990:], yt[14990:]
 	split = -1
+elif args.data == 'adult':
+	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
+	split = -1
 else:
-	X, y, Xt, yt, split = read_data(key=args.data, return_split=True)
+	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
 # add preprocessing?
 
 # number of experts 

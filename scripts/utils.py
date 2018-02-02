@@ -3,7 +3,7 @@ import scipy.io as spo
 # from sklearn.cluster import KMeans
 # from sklearn.preprocessing import OneHotEncoder
 
-def read_data(key='synth', return_split=False):
+def read_data(key='synth', return_split=False, preprocess='gauss'):
 	if key == 'synth':
 		train = open('../data/synth.tr','r').read().splitlines()[1:]
 		test = open('../data/synth.te', 'r').read().splitlines()[1:]
@@ -79,14 +79,63 @@ def read_data(key='synth', return_split=False):
 		for line in test:
 			Xt.append([1.0] + [float(f) for f in line.split(',')[1:]])
 			yt.append(int(float(line.split(',')[0])))
+	
+	if key == 'adult':
+		data = np.genfromtxt("../data/adult/data.csv", delimiter=',')
+		X = data[:22696, 1:]
+		y = data[:22696, 0]
+		Xt = data[22696:, 1:]
+		yt = data[22696:, 0]
 		
+		# adding bias terms
+		X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1)
+		Xt = np.concatenate((np.ones((Xt.shape[0], 1)), Xt), axis=1)
+
+		# categorical data, will skip preprocessing
+		return X, y, Xt, yt
+
+	if key == 'parkinsons':
+		data = np.genfromtxt("../data/parkinsons/data.csv", delimiter=',')
+		np.random.shuffle(data)
+
+		tr = data
+		te = data[313:,:]
+
+		setd = {}
+		j = np.shape(tr)
+		p = int(j[0]/5)
+		for t in range(5):
+			setd[t] = tr[t*p:(t+1)*p,:]
+
+		# error = np.zeros(5)
+		trv = {}
+		val = {}
+		for sec in range(5):
+			d = np.zeros((1,j[1]))
+			for t in range(5):
+				if(t!=sec):
+					d = np.concatenate((d,setd[t]),axis=0)	
+
+			c = d[1:,:]
+			trv[sec] = c
+			val[sec] = setd[sec]	
+
+		
+		trv = [trv,val]
+		return [trv,te,val_bool]
 
 	# basic preprocessing
 	X = np.array(X)
-	m, std = X.mean(axis=0),  X.std(axis=0)
-
+	if preprocess == 'gauss':
+		m, std = X.mean(axis=0),  X.std(axis=0)
+	elif preprocess == 'standard':
+		m, std = X.min(axis=0), X.max(axis=0)
+		std = std - m
+	else:
+		m, std = 0., 1.0
 	# the first feature is for the bias, which would std = 0, mean = 1
-	m[0], std[0] = 0., 1.0
+	if preprocess != 'none':
+		m[0], std[0] = 0., 1.0
 
 	# return train, train labels, test, test labels, and split if enabled
 	if return_split == False:
