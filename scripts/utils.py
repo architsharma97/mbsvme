@@ -19,6 +19,18 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 			entries = entry.split(' ')
 			yt.append(2 * int(entries[-1]) - 1)
 			Xt.append([1.0] + [float(t) for t in entries[:-1] if t != ''])
+
+	if key in ['pima', 'wisconsin', 'sonar']:
+		if key in ['pima', 'wisconsin']:
+			data = np.genfromtxt( "../data/" + key + "/data.csv", delimiter=',')
+		if key in ['sonar']:
+			data = np.genfromtxt( "../data/" + key + "/data.csv", delimiter=' ')
+		
+		data = np.concatenate((np.ones((data.shape[0], 1)), data), axis=1)
+
+		np.random.shuffle(data)
+		data[:, -1] = 2 * (data[:, -1] == 1) - 1
+		return data, None, None, None
 	
 	if key == 'pima':
 		train = open('../data/pima.tr', 'r').read().splitlines()[1:]
@@ -97,32 +109,12 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 	if key == 'parkinsons':
 		data = np.genfromtxt("../data/parkinsons/data.csv", delimiter=',')
 		np.random.shuffle(data)
+		# labels at the end
+		data = np.concatenate((np.ones((data.shape[0], 1)), data[:, 1:], data[:, 0:1]), axis=1)
 
-		tr = data
-		te = data[313:,:]
-
-		setd = {}
-		j = np.shape(tr)
-		p = int(j[0]/5)
-		for t in range(5):
-			setd[t] = tr[t*p:(t+1)*p,:]
-
-		# error = np.zeros(5)
-		trv = {}
-		val = {}
-		for sec in range(5):
-			d = np.zeros((1,j[1]))
-			for t in range(5):
-				if(t!=sec):
-					d = np.concatenate((d,setd[t]),axis=0)	
-
-			c = d[1:,:]
-			trv[sec] = c
-			val[sec] = setd[sec]	
-
-		
-		trv = [trv,val]
-		return [trv,te,val_bool]
+		# make labels 1, -1
+		data[:, -1] = 2 * (data[:, -1] == 1) - 1
+		return data, None, None, None
 
 	# basic preprocessing
 	X = np.array(X)

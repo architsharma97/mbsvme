@@ -61,11 +61,20 @@ parser.add_argument('-p', '--preprocess', type=str, default='gauss',
 					help='Choose preprocessing: "gauss", "standard" or "none"')
 args = parser.parse_args()
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
+def compute_acc(X, y):
+	gate_vals = np.zeros((X.shape[0], K))
+	for e in range(K):
+		gate_vals[:, e] = gate_prior[e] * multivariate_normal.pdf(X, mean=gate_mean[e, :], cov=gate_covariance[e, :, :])
+	gate_vals = (gate_vals.T / (gate_vals.sum(axis=1) + eps)).T
+	pred = 2 * ((np.dot(X, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+	
+	return np.mean(pred == y) * 100
 
 # stability
 eps = 1e-6
 delta = 1e-6
 
+kfold = 1
 if args.data == 'ijcnn':
 	X, y, Xt, yt = read_data(key=args.data, preprocess=args.preprocess)
 	# val and test split (predefined values)
@@ -75,106 +84,109 @@ if args.data == 'ijcnn':
 elif args.data == 'adult':
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
 	split = -1
+elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
+	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
+	if args.data == 'parkinsons':
+		kfold = 5
+	else:
+		kfold = 10
+
+	splitsize = X.shape[0] / kfold
+	splits = [X[i*splitsize:(i+1)*splitsize,:] for i in range(kfold)]
+
+	# add leftover datapoints to the the last split
+	if splitsize * kfold != X.shape[0]:
+		splits[-1] = np.concatenate((X[-(splitsize % kfold):,:], splits[-1]), axis=0)
 else:
 	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
-# add preprocessing?
 
-# number of experts 
-K = args.experts
-N = X.shape[0]
-dim = X.shape[1]
-max_iters = args.max_iters
+for split in range(kfold):
+	if kfold > 1:
+		train = np.concatenate([splits[fold] for fold in range(kfold) if fold!= split], axis=0)
+		test = splits[split]
 
-# prior over expert weight vector
-lambd = args.reg_value
+		X = train[:, :-1]
+		y = train[:, -1]
+		Xt = test[:, :-1]
+		yt = test[:, -1]
 
-# generative gating: initialization of parameters
-gate_mean = np.random.randn(K, dim)
-gate_prior = np.random.dirichlet([1] * K)
-gate_covariance = np.array([np.diag(np.random.uniform(0.0, 1.0, dim))] * K)
-experts = np.random.randn(K, dim)
+	# number of experts 
+	K = args.experts
+	N = X.shape[0]
+	dim = X.shape[1]
+	max_iters = args.max_iters
 
-# expectations to be computed
-ex_probs = np.zeros((N, K))
-gate_probs = np.zeros((N, K))
+	# prior over expert weight vector
+	lambd = args.reg_value
 
-max_acc = -1.0
-max_val = -1.0
+	# generative gating: initialization of parameters
+	gate_mean = np.random.randn(K, dim)
+	gate_prior = np.random.dirichlet([1] * K)
+	gate_covariance = np.array([np.diag(np.random.uniform(0.0, 1.0, dim))] * K)
+	experts = np.random.randn(K, dim)
 
-def compute_acc(key='test'):
-	if key == 'test':
-		gate_vals = np.zeros((Xt.shape[0], K))
-		for e in range(K):
-			gate_vals[:, e] = gate_prior[e] * multivariate_normal.pdf(Xt, mean=gate_mean[e, :], cov=gate_covariance[e, :, :])
-		gate_vals = (gate_vals.T / (gate_vals.sum(axis=1) + eps)).T
-		pred = 2 * ((np.dot(Xt, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+	# expectations to be computed
+	ex_probs = np.zeros((N, K))
+	gate_probs = np.zeros((N, K))
+
+	max_acc = -1.0
+	max_val = -1.0
 		
-		return np.mean(pred == yt) * 100
-	
-	elif key == 'val':
-		gate_vals = np.zeros((Xv.shape[0], K))
-		for e in range(K):
-			gate_vals[:, e] = gate_prior[e] * multivariate_normal.pdf(Xv, mean=gate_mean[e, :], cov=gate_covariance[e, :, :])
-		gate_vals = (gate_vals.T / (gate_vals.sum(axis=1) + eps)).T
-		pred = 2 * ((np.dot(Xv, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+	for iters in range(max_iters):
 		
-		return np.mean(pred == yv) * 100
-	
-for iters in range(max_iters):
-	
-	# E step
-	pred = (np.dot(X, experts.T).T * y).T
-	spred = 1. - pred
-	svm_likelihood = np.exp(-2 * spred * (spred > 0.0))
+		# E step
+		pred = (np.dot(X, experts.T).T * y).T
+		spred = 1. - pred
+		svm_likelihood = np.exp(-2 * spred * (spred > 0.0))
 
-	for e in range(K):
-		gate_probs[:, e] = multivariate_normal.pdf(X, mean=gate_mean[e, :], cov=gate_covariance[e, : ,:]) * gate_prior[e] + delta
-		ex_probs[:, e] = svm_likelihood[:, e] * gate_probs[:, e]
-	
-	# required expectations
-	ex_probs = (ex_probs.T / ex_probs.sum(axis=1)).T
-	
-	# EM for Bayesian SVM can lead to infinity values
-	tau = np.abs(spred)
-	Xmask = tau > delta
-	tau_inv = 1./ (tau + delta * (1 - Xmask))
+		for e in range(K):
+			gate_probs[:, e] = multivariate_normal.pdf(X, mean=gate_mean[e, :], cov=gate_covariance[e, : ,:]) * gate_prior[e] + delta
+			ex_probs[:, e] = svm_likelihood[:, e] * gate_probs[:, e]
+		
+		# required expectations
+		ex_probs = (ex_probs.T / ex_probs.sum(axis=1)).T
+		
+		# EM for Bayesian SVM can lead to infinity values
+		tau = np.abs(spred)
+		Xmask = tau > delta
+		tau_inv = 1./ (tau + delta * (1 - Xmask))
 
-	# expected complete log likelihood
-	# expected_cll = 0.5 * lambd * LA.norm(experts)**2 + (ex_probs * (pred * (tau_inv + 2) - 0.5 * pred**2 + np.log(gate_probs))).sum()
-	# print "E[CLL]: %f" %(expected_cll), 
-	
-	if args.data != 'ijcnn':
-		acc = compute_acc()
-		max_acc = max(max_acc, acc)
-		if args.file_write == False:
-			print "Test accuracy: %f" % (acc)
-	else:
-		acc = compute_acc(key='val')
-		if max_val < acc:
-			max_val = acc
-			max_acc = compute_acc()
+		# expected complete log likelihood
+		# expected_cll = 0.5 * lambd * LA.norm(experts)**2 + (ex_probs * (pred * (tau_inv + 2) - 0.5 * pred**2 + np.log(gate_probs))).sum()
+		# print "E[CLL]: %f" %(expected_cll), 
+		
+		if args.data != 'ijcnn':
+			acc = compute_acc(Xt, yt)
+			max_acc = max(max_acc, acc)
 			if args.file_write == False:
-				print "Test accuracy: %f" % (max_acc)
+				print "Test accuracy: %f" % (acc)
+		else:
+			acc = compute_acc(Xv, yv)
+			if max_val < acc:
+				max_val = acc
+				max_acc = compute_acc(Xt, yt)
+				if args.file_write == False:
+					print "Test accuracy: %f" % (max_acc)
 
-	# M step
-	aux1 = tau_inv * ex_probs
-	aux2 = (1 + tau_inv) * ex_probs
-	Nj = ex_probs.sum(axis=0)
-	gate_prior = Nj / N
+		# M step
+		aux1 = tau_inv * ex_probs
+		aux2 = (1 + tau_inv) * ex_probs
+		Nj = ex_probs.sum(axis=0)
+		gate_prior = Nj / N
 
-	for e in range(K):
-		experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
-		gate_covariance[e, :, :] = np.dot(np.dot(((X.T * Xmask[:,e]).T - gate_mean[e, :]).T, np.diag(ex_probs[:, e])), ((X.T * Xmask[:, e]).T - gate_mean[e, :])) / Nj[e] + eps * np.eye(dim)
-		gate_mean[e, :] = (X.T * ex_probs[:, e] * Xmask[:, e]).sum(axis=1) / Nj[e]
+		for e in range(K):
+			experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
+			gate_covariance[e, :, :] = np.dot(np.dot(((X.T * Xmask[:,e]).T - gate_mean[e, :]).T, np.diag(ex_probs[:, e])), ((X.T * Xmask[:, e]).T - gate_mean[e, :])) / Nj[e] + eps * np.eye(dim)
+			gate_mean[e, :] = (X.T * ex_probs[:, e] * Xmask[:, e]).sum(axis=1) / Nj[e]
 
-if args.file_write == False:
-	print "\n\n\n\n"
-	print "Dataset: " + args.data
-	print "Number of experts: " + str(args.experts)
-	print "Maximum accuracy achieved: " + str(max_acc)
-	print "Data dimensionality: " + str(dim)
-	print "Number of training points: " + str(N)
-	print "Number of test points: " + str(Xt.shape[0])
-else:
-	f = open("../results/" + str(args.data) + '_gg.txt' , 'a')
-	f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_value) + ", " + str(max_acc) + "\n")
+	if args.file_write == False:
+		print "\n\n\n\n"
+		print "Dataset: " + args.data
+		print "Number of experts: " + str(args.experts)
+		print "Maximum accuracy achieved: " + str(max_acc)
+		print "Data dimensionality: " + str(dim)
+		print "Number of training points: " + str(N)
+		print "Number of test points: " + str(Xt.shape[0])
+	else:
+		f = open("../results/" + str(args.data) + '_gg.txt' , 'a')
+		f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_value) + ", " + str(max_acc) + "\n")

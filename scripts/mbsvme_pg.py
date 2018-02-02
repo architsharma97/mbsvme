@@ -70,10 +70,21 @@ parser.add_argument('-p', '--preprocess', type=str, default='gauss',
 args = parser.parse_args()
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
 
+# safer softmax
+def softmax(X):
+	cur = np.exp(X.T - np.max(X, axis=1)).T
+	return (cur.T / cur.sum(axis=1) + delta).T
+
+def compute_acc(X, y):
+	gate_vals = softmax(np.dot(X, gate.T))
+	pred = 2 * ((np.dot(X, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+	return np.mean(pred == y) * 100
+
 # stability
 eps = 1e-6
 delta = 1e-6
 
+kfold = 1
 if args.data =='ijcnn':
 	X, y, Xt, yt = read_data(key=args.data, preprocess=args.preprocess)
 	# val and test split (predefined values)
@@ -83,101 +94,104 @@ if args.data =='ijcnn':
 elif args.data == 'adult':
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
 	split = -1
+
+elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
+	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
+	if args.data == 'parkinsons':
+		kfold = 5
+	else:
+		kfold = 10
+
+	splitsize = X.shape[0] / kfold
+	splits = [X[i*splitsize:(i+1)*splitsize,:] for i in range(kfold)]
+
+	# add leftover datapoints to the the last split
+	if splitsize * kfold != X.shape[0]:
+		splits[-1] = np.concatenate((X[-(splitsize % kfold):,:], splits[-1]), axis=0)
 else:
 	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
 
-# add preprocessing?
+for split in range(kfold):
+	if kfold > 1:
+		train = np.concatenate([splits[fold] for fold in range(kfold) if fold!= split], axis=0)
+		test = splits[split]
 
-# number of experts
-K = args.experts
-N = X.shape[0]
-dim = X.shape[1]
-max_iters = args.max_iters
+		X = train[:, :-1]
+		y = train[:, -1]
+		Xt = test[:, :-1]
+		yt = test[:, -1]
 
-# prior over expert weight vector and gate vector
-lambd1 = args.reg_val_exp
-lambd2 = args.reg_val_gate
+	# number of experts
+	K = args.experts
+	N = X.shape[0]
+	dim = X.shape[1]
+	max_iters = args.max_iters
 
-# generative gating: initialization of parameters
-gate = np.random.randn(K, dim)
-experts = np.random.randn(K, dim)
+	# prior over expert weight vector and gate vector
+	lambd1 = args.reg_val_exp
+	lambd2 = args.reg_val_gate
 
-# expectations to be computed
-ex_probs = np.zeros((N, K))
+	# generative gating: initialization of parameters
+	gate = np.random.randn(K, dim)
+	experts = np.random.randn(K, dim)
 
-max_acc = -1.0
-max_val = -1.0
+	# expectations to be computed
+	ex_probs = np.zeros((N, K))
 
-# safer softmax
-def softmax(X):
-	cur = np.exp(X.T - np.max(X, axis=1)).T
-	return (cur.T / cur.sum(axis=1) + delta).T
+	max_acc = -1.0
+	max_val = -1.0
 
-def compute_acc(key='test'):
-	if key == 'test':
-		gate_vals = softmax(np.dot(Xt, gate.T))
-		pred = 2 * ((np.dot(Xt, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
-		return np.mean(pred == yt) * 100
-	
-	elif key =='val':
-		gate_vals = softmax(np.dot(Xv, gate.T))
-		pred = 2 * ((np.dot(Xv, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
-		return np.mean(pred == yv) * 100
+	for iters in range(max_iters):
+		# E step
+		pred = (np.dot(X, experts.T).T * y).T
+		spred = 1. - pred
+		svm_log_likelihood = -2 * spred * (spred > 0.0)
 
-for iters in range(max_iters):
-	# E step
-	pred = (np.dot(X, experts.T).T * y).T
-	spred = 1. - pred
-	svm_log_likelihood = -2 * spred * (spred > 0.0)
+		# required expectations
+		pre_softmax = np.dot(X, gate.T)
+		un_softmax = np.exp(np.clip(pre_softmax, None, 500)) 
+		ex_probs = softmax(pre_softmax + svm_log_likelihood)
 
-	# required expectations
-	pre_softmax = np.dot(X, gate.T)
-	un_softmax = np.exp(np.clip(pre_softmax, None, 500)) 
-	ex_probs = softmax(pre_softmax + svm_log_likelihood)
+		psi = pre_softmax - np.log((np.zeros((K,N)) + un_softmax.sum(axis=1)).T - un_softmax + delta)
+		beta = 0.5 * np.tanh(psi) / psi
 
-	psi = pre_softmax - np.log((np.zeros((K,N)) + un_softmax.sum(axis=1)).T - un_softmax + delta)
-	beta = 0.5 * np.tanh(psi) / psi
+		# EM for Bayesian SVM can lead to infinity values
+		tau = np.abs(spred)
+		Xmask = tau > delta
+		tau_inv = 1./ (tau + delta * (1 - Xmask))
 
-	# EM for Bayesian SVM can lead to infinity values
-	tau = np.abs(spred)
-	Xmask = tau > delta
-	tau_inv = 1./ (tau + delta * (1 - Xmask))
-
-	if args.data != 'ijcnn':
-		acc = compute_acc()
-		max_acc = max(max_acc, acc)
-		if args.file_write == False:
-			print "Test accuracy: %f" % (acc)
-	else:
-		acc = compute_acc(key='val')
-		if max_val < acc:
-			max_val = acc
-			max_acc = compute_acc()
+		if args.data != 'ijcnn':
+			acc = compute_acc(Xt, yt)
+			max_acc = max(max_acc, acc)
 			if args.file_write == False:
-				print "Test accuracy: %f" % (max_acc)
+				print "Test accuracy: %f" % (acc)
+		else:
+			acc = compute_acc(Xv, yv)
+			if max_val < acc:
+				max_val = acc
+				max_acc = compute_acc(Xt, yt)
+				if args.file_write == False:
+					print "Test accuracy: %f" % (max_acc)
 
-	# M step
-	aux1 = tau_inv * ex_probs
-	aux2 = (1 + tau_inv) * ex_probs
-	aux3 = beta * ex_probs
+		# M step
+		aux1 = tau_inv * ex_probs
+		aux2 = (1 + tau_inv) * ex_probs
+		aux3 = beta * ex_probs
 
-	for e in range(K):
-		experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd1 * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
-		cur_unnormalized_softmax = np.exp(np.dot((X.T * Xmask[:, e]).T, gate.T))
-		kappa = (0.5 + np.log((np.zeros((K,N)) + cur_unnormalized_softmax.sum(axis=1)).T - cur_unnormalized_softmax + delta)[:, e] * beta[:, e]) * ex_probs[:, e]
-		gate[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux3[:, e])), (X.T * Xmask[:, e]).T) + lambd2 * np.eye(dim)), np.dot(X.T * Xmask[:, e], kappa))
+		for e in range(K):
+			experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd1 * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
+			cur_unnormalized_softmax = np.exp(np.clip(np.dot((X.T * Xmask[:, e]).T, gate.T), None, 500))
+			kappa = (0.5 + np.log((np.zeros((K,N)) + cur_unnormalized_softmax.sum(axis=1)).T - cur_unnormalized_softmax + delta)[:, e] * beta[:, e]) * ex_probs[:, e]
+			gate[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux3[:, e])), (X.T * Xmask[:, e]).T) + lambd2 * np.eye(dim)), np.dot(X.T * Xmask[:, e], kappa))
 
-if args.file_write == False:
-	print "\n\n\n\n"
-	print "Dataset: " + args.data
-	print "Number of experts: " + str(args.experts)
-	print "Maximum accuracy achieved: " + str(max_acc)
-	print "Data dimensionality: " + str(dim)
-	print "Number of training points: " + str(N)
-	print "Number of test points: " + str(Xt.shape[0])
-
-	# print "Gate: ", gate
-	# print "Experts: ", experts
-else:
-	f = open("../results/" + str(args.data) + '_pgc.txt' , 'a')
-	f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_val_gate) + ", " + str(args.reg_val_exp) + ", " + str(max_acc) + "\n")
+	if args.file_write == False:
+		print "\n\n\n\n"
+		print "Dataset: " + args.data
+		print "Number of experts: " + str(args.experts)
+		print "Maximum accuracy achieved: " + str(max_acc)
+		print "Data dimensionality: " + str(dim)
+		print "Number of training points: " + str(N)
+		print "Number of test points: " + str(Xt.shape[0])
+	else:
+		f = open("../results/" + str(args.data) + '_pgc.txt' , 'a')
+		f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_val_gate) + ", " + str(args.reg_val_exp) + ", " + str(max_acc) + "\n")
