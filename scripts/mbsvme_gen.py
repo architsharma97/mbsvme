@@ -71,7 +71,7 @@ def compute_acc(X, y):
 	return np.mean(pred == y) * 100
 
 # stability
-eps = 1e-6
+eps = 1e-4
 delta = 1e-6
 
 kfold = 1
