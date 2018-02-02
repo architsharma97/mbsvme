@@ -57,7 +57,7 @@ parser.add_argument('-d', '--data', type=str, default='banana',
 					help='Name of the dataset')
 parser.add_argument('-k','--experts', type=int, default=4,
 					help='Number of Experts for the model')
-parser.add_argument('-m', '--max_iters', type=int, default=30,
+parser.add_argument('-m', '--max_iters', type=int, default=50,
 					help='Maximum number of iterations')
 parser.add_argument('-re','--reg_val_exp', type=float, default=1.0,
 					help='Regularization hyperparameter for prior on expert weight vectors')
@@ -95,7 +95,6 @@ lambd2 = args.reg_val_gate
 # generative gating: initialization of parameters
 gate = np.random.randn(K, dim)
 experts = np.random.randn(K, dim)
-# gate[0, :] = np.zeros(dim)
 
 # expectations to be computed
 ex_probs = np.zeros((N, K))
@@ -158,9 +157,9 @@ for iters in range(max_iters):
 
 	for e in range(K):
 		experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd1 * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
-		cur_unnormalized_softmax = np.exp(np.clip(np.dot(X, experts.T), None, 500))
-		kappa = (np.log((np.zeros((K,N)) + cur_unnormalized_softmax.sum(axis=1)).T - cur_unnormalized_softmax + delta)[:, e] * beta[:, e] + 0.5) * ex_probs[:, e]
-		gate[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T, np.diag(aux3[:, e])), X) + lambd2 * np.eye(dim)), np.dot(X.T, kappa))
+		cur_unnormalized_softmax = np.exp(np.dot((X.T * Xmask[:, e]).T, gate.T))
+		kappa = (0.5 + np.log((np.zeros((K,N)) + cur_unnormalized_softmax.sum(axis=1)).T - cur_unnormalized_softmax + delta)[:, e] * beta[:, e]) * ex_probs[:, e]
+		gate[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux3[:, e])), (X.T * Xmask[:, e]).T) + lambd2 * np.eye(dim)), np.dot(X.T * Xmask[:, e], kappa))
 
 if args.file_write == False:
 	print "\n\n\n\n"
@@ -171,6 +170,8 @@ if args.file_write == False:
 	print "Number of training points: " + str(N)
 	print "Number of test points: " + str(Xt.shape[0])
 
+	# print "Gate: ", gate
+	# print "Experts: ", experts
 else:
-	f = open("../results/" + str(args.data) + '_pg.txt' , 'a')
+	f = open("../results/" + str(args.data) + '_pgc.txt' , 'a')
 	f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_val_gate) + ", " + str(args.reg_val_exp) + ", " + str(max_acc) + "\n")
