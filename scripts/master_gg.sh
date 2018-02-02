@@ -1,5 +1,5 @@
 #!/bin/bash
-for dataset in pima
+for dataset in parkinsons
 do
 	echo "running on "$dataset
 	for num in 10 1 5 20
