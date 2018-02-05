@@ -81,9 +81,11 @@ if args.data == 'ijcnn':
 	Xv, yv = Xt[:14990, :], yt[:14990]
 	Xt, yt = Xt[14990:], yt[14990:]
 	split = -1
+
 elif args.data == 'adult':
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
 	split = -1
+
 elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
 	if args.data == 'parkinsons':
@@ -100,6 +102,7 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 
 elif args.data == 'landmine':
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
+	
 	# train on each as a single task model
 	split = taskid = np.random.randint(0, 19)
 	X, y, Xt, yt = X[taskid], y[taskid], Xt[taskid], yt[taskid]
@@ -107,11 +110,12 @@ elif args.data == 'landmine':
 else:
 	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
 
-for split in range(kfold):
+for cur_fold in range(kfold):
 	if kfold > 1:
-		train = np.concatenate([splits[fold] for fold in range(kfold) if fold!= split], axis=0)
-		test = splits[split]
+		train = np.concatenate([splits[fold] for fold in range(kfold) if fold != cur_fold], axis=0)
+		test = splits[cur_fold]
 
+		split = cur_fold
 		X = train[:, :-1]
 		y = train[:, -1]
 		Xt = test[:, :-1]
