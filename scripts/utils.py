@@ -3,6 +3,26 @@ import scipy.io as spo
 # from sklearn.cluster import KMeans
 # from sklearn.preprocessing import OneHotEncoder
 
+def preprocessing(X, preprocess='gauss', return_stats=False):
+	# basic preprocessing
+	X = np.array(X)
+	if preprocess == 'gauss':
+		m, std = X.mean(axis=0),  X.std(axis=0)
+	elif preprocess == 'standard':
+		m, std = X.min(axis=0), X.max(axis=0)
+		std = std - m
+	else:
+		m, std = 0., 1.0
+	
+	# the first feature is for the bias, which would std = 0, mean = 1
+	if preprocess != 'none':
+		m[0], std[0] = 0., 1.0
+	
+	if return_stats:
+		return (X - m) / std, m, std
+	else:
+		return (X - m) / std
+
 def read_data(key='synth', return_split=False, preprocess='gauss'):
 	if key == 'synth':
 		train = open('../data/synth.tr','r').read().splitlines()[1:]
@@ -116,24 +136,26 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 		data[:, -1] = 2 * (data[:, -1] == 1) - 1
 		return data, None, None, None
 
-	# basic preprocessing
-	X = np.array(X)
-	if preprocess == 'gauss':
-		m, std = X.mean(axis=0),  X.std(axis=0)
-	elif preprocess == 'standard':
-		m, std = X.min(axis=0), X.max(axis=0)
-		std = std - m
-	else:
-		m, std = 0., 1.0
-	# the first feature is for the bias, which would std = 0, mean = 1
-	if preprocess != 'none':
-		m[0], std[0] = 0., 1.0
+	if key == 'landmine':
+		data = spo.loadmat('../data/landmine_balanced.mat')
+		
+		# 19 tasks
+		stats = [preprocessing(np.concatenate([np.ones((data['xTr'][0, idx].shape[0], 1)), data['xTr'][0, idx]], axis=1), preprocess=preprocess, return_stats=True) for idx in range(19)]
+		
+		xTr = [stats[idx][0] for idx in range(19)]
+		xTe = [(np.concatenate([np.ones((data['xTe'][0, idx].shape[0], 1)), data['xTe'][0, idx]], axis=1) - stats[idx][1])/stats[idx][2] for idx in range(19)]
+		yTr = [data['yTr'][0, idx] for idx in range(19)]
+		yTe = [data['yTe'][0, idx] for idx in range(19)]
+
+		return xTr, yTr, xTe, yTe
+
+	X, m, std = preprocessing(X, preprocess=preprocess, return_stats=True)
 
 	# return train, train labels, test, test labels, and split if enabled
 	if return_split == False:
-		return (X - m) / std, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
+		return X, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
 	else:
-		return (X - m) / std, np.array(y), (np.array(Xt) - m) / std, np.array(yt), split
+		return X, np.array(y), (np.array(Xt) - m) / std, np.array(yt), split
 
 def softmaxx(X):
 	cur = np.exp(X.T - np.max(X, axis=1)).T

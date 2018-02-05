@@ -97,6 +97,13 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 	# add leftover datapoints to the the last split
 	if splitsize * kfold != X.shape[0]:
 		splits[-1] = np.concatenate((X[-(splitsize % kfold):,:], splits[-1]), axis=0)
+
+elif args.data == 'landmine':
+	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
+	# train on each as a single task model
+	split = taskid = 0
+	X, y, Xt, yt = X[taskid], y[taskid], Xt[taskid], yt[taskid]
+
 else:
 	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
 

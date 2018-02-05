@@ -81,8 +81,8 @@ def compute_acc(X, y):
 	return np.mean(pred == y) * 100
 
 # stability
-eps = 1e-6
-delta = 1e-6
+eps = 1e-4
+delta = 1e-4
 
 kfold = 1
 if args.data =='ijcnn':
@@ -153,7 +153,7 @@ for split in range(kfold):
 		ex_probs = softmax(pre_softmax + svm_log_likelihood)
 
 		psi = pre_softmax - np.log((np.zeros((K,N)) + un_softmax.sum(axis=1)).T - un_softmax + delta)
-		beta = 0.5 * np.tanh(psi) / psi
+		beta = 0.5 * np.tanh(0.5 * psi) / psi
 
 		# EM for Bayesian SVM can lead to infinity values
 		tau = np.abs(spred)
