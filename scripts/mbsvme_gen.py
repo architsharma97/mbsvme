@@ -101,7 +101,7 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 elif args.data == 'landmine':
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
 	# train on each as a single task model
-	split = taskid = 0
+	split = taskid = np.random.randint(0, 19)
 	X, y, Xt, yt = X[taskid], y[taskid], Xt[taskid], yt[taskid]
 
 else:

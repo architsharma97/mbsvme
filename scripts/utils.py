@@ -144,8 +144,8 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 		
 		xTr = [stats[idx][0] for idx in range(19)]
 		xTe = [(np.concatenate([np.ones((data['xTe'][0, idx].shape[0], 1)), data['xTe'][0, idx]], axis=1) - stats[idx][1])/stats[idx][2] for idx in range(19)]
-		yTr = [data['yTr'][0, idx] for idx in range(19)]
-		yTe = [data['yTe'][0, idx] for idx in range(19)]
+		yTr = [data['yTr'][0, idx][:, 0] for idx in range(19)]
+		yTe = [data['yTe'][0, idx][:, 0] for idx in range(19)]
 
 		return xTr, yTr, xTe, yTe
 
