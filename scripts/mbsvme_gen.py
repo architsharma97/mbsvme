@@ -208,5 +208,5 @@ for cur_fold in range(kfold):
 		print "Number of test points: " + str(Xt.shape[0])
 	
 	else:
-		f = open("../results/" + str(args.data) + '.txt' , 'a')
+		f = open("../results/" + str(args.data) + '_gg.txt' , 'a')
 		f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_value) + ", " + str(max_acc) + "\n")
