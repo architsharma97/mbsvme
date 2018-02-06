@@ -188,3 +188,13 @@ def init(rows, cols, key='gauss', data=None):
 
 		print "Accuracy of initialization: " + str(np.mean((np.argmax(softmaxx(np.dot(data, weights.T)), axis=1) == cluster_ids)) * 100)
 		return weights
+
+def process_results(fname, rep):
+	f = open(fname, 'r').read().splitlines()
+	idx = 0
+	for _ in range(len(f)/rep):
+		acc = []
+		for _ in range(rep):
+			acc.append(float(f[idx].split(',')[-1]))
+			idx += 1
+		print np.mean(acc), np.std(acc)
