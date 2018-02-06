@@ -59,6 +59,8 @@ parser.add_argument('-f', '--file_write', type=bool, default=False,
 					help='Write results to a file name, makes one file for one dataset')
 parser.add_argument('-p', '--preprocess', type=str, default='gauss',
 					help='Choose preprocessing: "gauss", "standard" or "none"')
+parser.add_argument('-t', '--task', type=int, default=None,
+					help='Choose the task id upon which this single task model is tested')
 args = parser.parse_args()
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
 def compute_acc(X, y):
@@ -72,7 +74,7 @@ def compute_acc(X, y):
 
 # stability
 eps = 1e-4
-delta = 1e-6
+delta = 1e-4
 
 kfold = 1
 if args.data == 'ijcnn':
@@ -100,11 +102,17 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 	if splitsize * kfold != X.shape[0]:
 		splits[-1] = np.concatenate((X[-(splitsize % kfold):,:], splits[-1]), axis=0)
 
-elif args.data == 'landmine':
+elif args.data in ['landmine', 'mnist', 'sentiment']:
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
 	
+	task_num = {'landmine': 19, 'mnist': 10, 'sentiment': 4}
+
 	# train on each as a single task model
-	split = taskid = np.random.randint(0, 19)
+	if args.task is None:
+		split = taskid = np.random.randint(0, task_num[args.data])
+	else:
+		split = taskid = args.task
+
 	X, y, Xt, yt = X[taskid], y[taskid], Xt[taskid], yt[taskid]
 
 else:
@@ -198,6 +206,7 @@ for cur_fold in range(kfold):
 		print "Data dimensionality: " + str(dim)
 		print "Number of training points: " + str(N)
 		print "Number of test points: " + str(Xt.shape[0])
+	
 	else:
-		f = open("../results/" + str(args.data) + '_gg.txt' , 'a')
+		f = open("../results/" + str(args.data) + '.txt' , 'a')
 		f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_value) + ", " + str(max_acc) + "\n")

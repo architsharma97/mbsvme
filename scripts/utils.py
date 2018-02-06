@@ -8,9 +8,11 @@ def preprocessing(X, preprocess='gauss', return_stats=False):
 	X = np.array(X)
 	if preprocess == 'gauss':
 		m, std = X.mean(axis=0),  X.std(axis=0)
+		std += 1e-8
 	elif preprocess == 'standard':
 		m, std = X.min(axis=0), X.max(axis=0)
 		std = std - m
+		std += 1e-8
 	else:
 		m, std = 0., 1.0
 	
@@ -136,16 +138,23 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 		data[:, -1] = 2 * (data[:, -1] == 1) - 1
 		return data, None, None, None
 
-	if key == 'landmine':
-		data = spo.loadmat('../data/landmine_balanced.mat')
+	if key in ['landmine', 'mnist', 'sentiment']:
+		if key == 'landmine':
+			data = spo.loadmat('../data/landmine_balanced.mat')
+			tasks = 19
+		elif key == 'mnist':
+			data = spo.loadmat('../data/mnist.mat')
+			tasks = 10
+		elif key == 'sentiment':
+			data = spo.loadmat('../data/sentiment_processed.mat')
+			tasks = 4
 		
-		# 19 tasks
-		stats = [preprocessing(np.concatenate([np.ones((data['xTr'][0, idx].shape[0], 1)), data['xTr'][0, idx]], axis=1), preprocess=preprocess, return_stats=True) for idx in range(19)]
+		stats = [preprocessing(np.concatenate([np.ones((data['xTr'][0, idx].shape[0], 1)), data['xTr'][0, idx]], axis=1), preprocess=preprocess, return_stats=True) for idx in range(tasks)]
 		
-		xTr = [stats[idx][0] for idx in range(19)]
-		xTe = [(np.concatenate([np.ones((data['xTe'][0, idx].shape[0], 1)), data['xTe'][0, idx]], axis=1) - stats[idx][1])/stats[idx][2] for idx in range(19)]
-		yTr = [data['yTr'][0, idx][:, 0] for idx in range(19)]
-		yTe = [data['yTe'][0, idx][:, 0] for idx in range(19)]
+		xTr = [stats[idx][0] for idx in range(tasks)]
+		xTe = [(np.concatenate([np.ones((data['xTe'][0, idx].shape[0], 1)), data['xTe'][0, idx]], axis=1) - stats[idx][1])/stats[idx][2] for idx in range(tasks)]
+		yTr = [2 * data['yTr'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)]
+		yTe = [2 * data['yTe'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)]
 
 		return xTr, yTr, xTe, yTe
 

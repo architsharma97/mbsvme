@@ -111,11 +111,12 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 else:
 	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
 
-for split in range(kfold):
+for cur_fold in range(kfold):
 	if kfold > 1:
-		train = np.concatenate([splits[fold] for fold in range(kfold) if fold!= split], axis=0)
-		test = splits[split]
-
+		train = np.concatenate([splits[fold] for fold in range(kfold) if fold != cur_fold], axis=0)
+		test = splits[cur_fold]
+		split = cur_fold
+		
 		X = train[:, :-1]
 		y = train[:, -1]
 		Xt = test[:, :-1]
