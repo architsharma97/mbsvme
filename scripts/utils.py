@@ -153,9 +153,14 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 		
 		xTr = [stats[idx][0] for idx in range(tasks)]
 		xTe = [(np.concatenate([np.ones((data['xTe'][0, idx].shape[0], 1)), data['xTe'][0, idx]], axis=1) - stats[idx][1])/stats[idx][2] for idx in range(tasks)]
-		yTr = [2 * data['yTr'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)]
-		yTe = [2 * data['yTe'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)]
-
+		
+		if key == 'sentiment':
+			yTr = [2 * data['yTr'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)]
+			yTe = [2 * data['yTe'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)]
+		else:
+			yTr = [data['yTr'][0, idx][:, 0] for idx in range(tasks)]
+			yTe = [data['yTe'][0, idx][:, 0] for idx in range(tasks)]
+		
 		return xTr, yTr, xTe, yTe
 
 	X, m, std = preprocessing(X, preprocess=preprocess, return_stats=True)
