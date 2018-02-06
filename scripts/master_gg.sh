@@ -1,13 +1,13 @@
 #!/bin/bash
-for dataset in sentiment
+for dataset in mnist
 do
 	echo "running on "$dataset
-	for num in 10
+	for num in 1 2 5 10
 	do
-		for reg_exp in 5.0 20.0
+		for reg_exp in 10.0 1.0 5.0 20.0
 		do
 			echo $num" expert(s) in use with regularization at "$reg_exp
-			for taskid in {0..3}
+			for taskid in {0..9}
 			do
 				for rep in {1..5}
 				do
