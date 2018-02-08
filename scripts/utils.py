@@ -152,7 +152,7 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 		stats = [preprocessing(np.concatenate([np.ones((data['xTr'][0, idx].shape[0], 1)), data['xTr'][0, idx]], axis=1), preprocess=preprocess, return_stats=True) for idx in range(tasks)]
 		
 		xTr = [stats[idx][0] for idx in range(tasks)]
-		xTe = [(np.concatenate([np.ones((data['xTe'][0, idx].shape[0], 1)), data['xTe'][0, idx]], axis=1) - stats[idx][1])/stats[idx][2] for idx in range(tasks)]
+		xTe = [(np.concatenate([np.ones((data['xTe'][0, idx].shape[0], 1)), data['xTe'][0, idx]], axis=1) - stats[idx][1]) / stats[idx][2] for idx in range(tasks)]
 		
 		if key == 'sentiment':
 			yTr = [2 * data['yTr'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)]
@@ -163,6 +163,26 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 		
 		return xTr, yTr, xTe, yTe
 
+	if key in ['landmine_c', 'mnist_c', 'sentiment_c']:
+		if key == 'landmine_c':
+			data = spo.loadmat('../data/landmine_balanced.mat')
+			tasks = 19
+		elif key == 'mnist_c':
+			data = spo.loadmat('../data/mnist.mat')
+			tasks = 10
+		elif key == 'sentiment_c':
+			data = spo.loadmat('../data/sentiment_processed.mat')
+			tasks = 4
+
+		X = np.concatenate([np.concatenate([np.ones((data['xTr'][0, idx].shape[0], 1)), data['xTr'][0, idx], idx * np.ones((data['xTr'][0, idx].shape[0], 1))], axis=1) for idx in range(tasks)], axis=0)
+		Xt = np.concatenate([np.concatenate([np.ones((data['xTe'][0, idx].shape[0], 1)), data['xTe'][0, idx], idx * np.ones((data['xTe'][0, idx].shape[0], 1))], axis=1) for idx in range(tasks)], axis=0)
+		if key == 'sentiment_c':
+			y = np.concatenate([2 * data['yTr'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)], axis=0)
+			yt = np.concatenate([2 * data['yTe'][0, idx][:, 0].astype('int8') - 3 for idx in range(tasks)], axis=0)
+		else:
+			y = np.concatenate([data['yTr'][0, idx][:, 0] for idx in range(tasks)], axis=0)
+			yt = np.concatenate([data['yTe'][0, idx][:, 0] for idx in range(tasks)], axis=0)
+	
 	X, m, std = preprocessing(X, preprocess=preprocess, return_stats=True)
 
 	# return train, train labels, test, test labels, and split if enabled

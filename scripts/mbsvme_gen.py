@@ -84,7 +84,7 @@ if args.data == 'ijcnn':
 	Xt, yt = Xt[14990:], yt[14990:]
 	split = -1
 
-elif args.data == 'adult':
+elif args.data in ['adult', 'landmine_c', 'mnist_c', 'sentiment_c']:
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
 	split = -1
 

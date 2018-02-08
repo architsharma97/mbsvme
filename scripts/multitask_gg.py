@@ -87,7 +87,8 @@ for iters in range(max_iters):
 	
 		# required expectations
 		ex_probs[i] = (ex_probs[i].T / ex_probs[i].sum(axis=1)).T
-	
+		# ex_probs[i] = (ex_probs[i].T / ex_probs[i].sum(axis=1)).T
+
 		# EM for Bayesian SVM can lead to infinity values
 		tau[i] = np.abs(spred[i])
 		Xmask[i] = tau[i] > delta
@@ -114,6 +115,16 @@ for iters in range(max_iters):
 	aux2_comb = np.concatenate(aux2, axis=0)
 	for e in range(K):
 		experts[e, :] = np.dot(LA.inv(np.dot(np.dot(Xcomb.T * Xmask_comb[:, e], np.diag(aux1_comb[:, e])), (Xcomb.T * Xmask_comb[:, e]).T) + lambd * np.eye(dim)), (Xcomb.T * ycomb * aux2_comb[:, e] * Xmask_comb[:, e]).sum(axis=1))
+
+# some investigative printing
+# print "Average Expert Assignment"
+# for idx in range(tasks):
+# 	gate_vals = np.zeros((Xt[idx].shape[0], K))
+# 	for e in range(K):
+# 		gate_vals[:, e] = gate_prior[idx][e] * multivariate_normal.pdf(Xt[idx], mean=gate_mean[idx][e, :], cov=gate_covariance[idx][e, :, :])
+# 	gate_vals = (gate_vals.T / (gate_vals.sum(axis=1) + eps)).T
+# 	me = gate_vals.mean(axis=0)
+# 	print idx + 1, me, np.argmax(me), np.max(me), me.sum()
 
 if args.file_write == False:
 	print "\n\n\n\n"
