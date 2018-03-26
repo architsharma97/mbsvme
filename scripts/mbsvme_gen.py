@@ -68,8 +68,14 @@ def compute_acc(X, y):
 	for e in range(K):
 		gate_vals[:, e] = gate_prior[e] * multivariate_normal.pdf(X, mean=gate_mean[e, :], cov=gate_covariance[e, :, :])
 	gate_vals = (gate_vals.T / (gate_vals.sum(axis=1) + eps)).T
-	pred = 2 * ((np.dot(X, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
 	
+	# pred = 2 * ((np.dot(X, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+	ln = 1. + np.dot(X, experts.T)
+	ln = (np.exp(-2. * ln * (ln > 0.0)) * gate_vals).sum(axis=1)
+	lp = 1. - np.dot(X, experts.T)
+	lp = (np.exp(-2. * lp * (lp > 0.0)) * gate_vals).sum(axis=1)
+	pred = 2 * (ln < lp) - 1
+
 	return np.mean(pred == y) * 100
 
 # stability
