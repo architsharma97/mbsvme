@@ -148,9 +148,9 @@ for cur_fold in range(kfold):
 		ex_probs[:, -K:] = np.exp(ex_probs[:, -K:] + likelihood)
 		ex_probs[:, -K:] = (ex_probs[:, -K:].T / ex_probs[:, -K:].sum(axis=1)).T
 
-		tau_inv = 1./ np.abs(margin)
-		invtau_l = 1./ np.abs(gl_margin)
-		invtau_r = 1./ np.abs(gr_margin)
+		tau_inv = 1./ (np.abs(margin) + eps)
+		invtau_l = 1./ (np.abs(gl_margin) + eps)
+		invtau_r = 1./ (np.abs(gr_margin) + eps)
 		
 		# predict accuracies
 		if args.data != 'ijcnn':
