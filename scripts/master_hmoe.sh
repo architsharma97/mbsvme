@@ -1,5 +1,5 @@
 #!/bin/bash
-for dataset in banana breast_cancer ijcnn waveform image adult
+for dataset in banana
 do
 	echo "running on "$dataset
 	for num in 2 3 4 5 6
@@ -9,9 +9,9 @@ do
 			echo $num" expert(s) in use with regularization at "$reg_exp
 			for taskid in {0..0}
 			do
-				for rep in {1..5}
+				for rep in {1..50}
 				do
-					python mbsvme_gen.py -f True -d $dataset -l $num -r $reg_exp --max_iters 50 -p gauss -t $taskid
+					python hmoe.py -f True -d $dataset -l $num -r $reg_exp --max_iters 60 -p gauss -t $taskid
 				done
 			done
 		done
