@@ -190,4 +190,4 @@ for cur_fold in range(kfold):
 	
 	else:
 		f = open("../results/" + str(args.data) + '_hmoe.txt' , 'a')
-		f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_value) + ", " + str(max_acc) + "\n")
+		f.write(str(split) + ", " + str(args.levels) + ", " + str(args.reg_value) + ", " + str(max_acc) + "\n")

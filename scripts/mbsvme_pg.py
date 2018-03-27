@@ -77,7 +77,14 @@ def softmax(X):
 
 def compute_acc(X, y):
 	gate_vals = softmax(np.dot(X, gate.T))
-	pred = 2 * ((np.dot(X, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+	
+	# pred = 2 * ((np.dot(X, experts.T) * gate_vals).sum(axis=1) > 0.0) - 1
+	ln = 1. + np.dot(X, experts.T)
+	ln = (np.exp(-2. * ln * (ln > 0.0)) * gate_vals).sum(axis=1)
+	lp = 1. - np.dot(X, experts.T)
+	lp = (np.exp(-2. * lp * (lp > 0.0)) * gate_vals).sum(axis=1)
+	pred = 2 * (ln < lp) - 1
+
 	return np.mean(pred == y) * 100
 
 # stability
