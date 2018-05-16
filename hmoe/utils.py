@@ -25,7 +25,7 @@ def preprocessing(X, preprocess='gauss', return_stats=False):
 	else:
 		return (X - m) / std
 
-def read_data(key='synth', return_split=False, preprocess='gauss'):
+def read_data(key='synth', return_split=False, preprocess='gauss', inp_split=None):
 	if key == 'synth':
 		train = open('../data/synth.tr','r').read().splitlines()[1:]
 		test = open('../data/synth.te', 'r').read().splitlines()[1:]
@@ -80,7 +80,7 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 		else:
 			rand_idx = np.random.randint(0,100)
 
-		split = rand_idx
+		split = inp_split
 		train_indices = data['train'][0][0][split, :]
 		test_indices = data['test'][0][0][split, :]
 
@@ -224,17 +224,3 @@ def process_results(fname, rep):
 			acc.append(float(f[idx].split(',')[-1]))
 			idx += 1
 		print np.mean(acc), np.std(acc)
-
-def process_results_robust(fname, hypercount=2):
-	f = open(fname, 'r').read().splitlines()
-	keys = list(set([tuple([float(x.split(',')[idx]) for idx in range(1, hypercount + 1)]) for x in f]))
-
-	acc = {}
-	for key in keys:
-		acc[key] = []
-
-	for line in f:
-		acc[tuple([float(line.split(',')[idx]) for idx in range(1, hypercount + 1)])].append(float(line.split(',')[-1]))
-
-	for key in acc.keys():
-		print 100-np.mean(acc[key]), np.std(acc[key]), len(acc[key])

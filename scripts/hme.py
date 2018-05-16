@@ -1,6 +1,5 @@
 import numpy as np
 from numpy import linalg as LA
-from scipy.stats import multivariate_normal
 
 from utils import read_data
 
@@ -26,7 +25,7 @@ args = parser.parse_args()
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # stability
-eps = 1e-8
+eps = 0.
 
 kfold = 1
 if args.data == 'ijcnn':
@@ -123,12 +122,12 @@ for cur_fold in range(kfold):
 
 	# weight matrix to be learnt
 	W = np.random.randn(2*K-1, dim)
-
+	
 	max_acc = -1.0
 	max_val = -1.0
 	
 	# expectations for E step
-	ex_probs = np.zeros((N, 2*K - 1))		
+	ex_probs = np.zeros((N, 2*K - 1))
 	
 	for iters in range(max_iters):
 		# precomputations
