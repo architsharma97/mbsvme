@@ -88,8 +88,8 @@ def compute_acc(X, y):
 	return np.mean(pred == y) * 100
 
 # stability
-eps = 1e-4
-delta = 1e-4
+eps = 1e-12
+delta = 1e-12
 
 kfold = 1
 if args.data =='ijcnn':
@@ -98,6 +98,7 @@ if args.data =='ijcnn':
 	Xv, yv = Xt[:14990, :], yt[:14990]
 	Xt, yt = Xt[14990:], yt[14990:]
 	split = -1
+	
 elif args.data == 'adult':
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
 	split = -1
@@ -114,7 +115,7 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 
 	# add leftover datapoints to the the last split
 	if splitsize * kfold != X.shape[0]:
-		splits[-1] = np.concatenate((X[-(splitsize % kfold):,:], splits[-1]), axis=0)
+		splits[-1] = np.concatenate((X[-(X.shape[0] % kfold):,:], splits[-1]), axis=0)
 else:
 	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
 

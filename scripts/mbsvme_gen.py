@@ -106,7 +106,7 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 
 	# add leftover datapoints to the the last split
 	if splitsize * kfold != X.shape[0]:
-		splits[-1] = np.concatenate((X[-(splitsize % kfold):,:], splits[-1]), axis=0)
+		splits[-1] = np.concatenate((X[-(X.shape[0] % kfold):,:], splits[-1]), axis=0)
 
 elif args.data in ['landmine', 'mnist', 'sentiment']:
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)

@@ -1,5 +1,5 @@
 #!/bin/bash
-for dataset in landmine
+for dataset in sonar
 do
 	echo "running on "$dataset
 	for num in 1 2 5 10

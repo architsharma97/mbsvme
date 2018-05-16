@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import linalg as LA
 
-from utils import read_data
+from utils import read_data, preprocessing
 
 import argparse
 
@@ -51,7 +51,7 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 
 	# add leftover datapoints to the the last split
 	if splitsize * kfold != X.shape[0]:
-		splits[-1] = np.concatenate((X[-(splitsize % kfold):,:], splits[-1]), axis=0)
+		splits[-1] = np.concatenate((X[-(X.shape[0] % kfold):,:], splits[-1]), axis=0)
 
 elif args.data in ['landmine', 'mnist', 'sentiment']:
 	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
@@ -111,6 +111,9 @@ for cur_fold in range(kfold):
 		Xt = test[:, :-1]
 		yt = test[:, -1]
 
+		X, m, std = preprocessing(X, preprocess=args.preprocess, return_stats=True)
+		X, y, Xt, yt = X, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
+
 	# expert count
 	K = 2 ** (args.levels-1)
 	N = X.shape[0]
@@ -145,7 +148,7 @@ for cur_fold in range(kfold):
 		margin = 1. - (ip[:, -K:].T * y).T
 		likelihood = -2.0 * margin * (margin > 0.0)
 		ex_probs[:, -K:] = np.exp(ex_probs[:, -K:] + likelihood)
-		ex_probs[:, -K:] = (ex_probs[:, -K:].T / ex_probs[:, -K:].sum(axis=1)).T
+		ex_probs[:, -K:] = (ex_probs[:, -K:].T / (ex_probs[:, -K:].sum(axis=1))).T
 
 		tau_inv = 1./ (np.abs(margin) + eps)
 		invtau_l = 1./ (np.abs(gl_margin) + eps)
