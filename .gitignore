@@ -3,3 +3,5 @@ data/
 *.pyc
 results/
 *.txt
+hme_mod.py
+scripts/classicHME/
