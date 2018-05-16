@@ -11,7 +11,7 @@ do
 			do
 				for rep in {1..2}
 				do
-					python hmoe.py -f True -d $dataset -l $num -r $reg_exp --max_iters 60 -p gauss -t $taskid
+					python hme.py -f True -d $dataset -l $num -r $reg_exp --max_iters 60 -p gauss -t $taskid
 				done
 			done
 		done
