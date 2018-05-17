@@ -3,14 +3,14 @@ ds=$1
 for dataset in $ds
 do
 	echo "running on "$dataset
-	for num in 10 5 1 20
+	for num in 10 5 20
 	do
 		for reg_exp in 1.0 2.0 10.0 5.0
 		do
 			for reg_gat in 2.0 10.0 1.0 5.0
 			do
 				echo $num" expert(s) in use with regularization values ("$reg_exp"," $reg_gat")"
-				for id in {0..9}
+				for id in {0..0}
 				do
 					for rep in {0..5}
 					do
