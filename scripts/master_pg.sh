@@ -1,9 +1,9 @@
 #!/bin/bash
-ds = $1
+ds=$1
 for dataset in $ds
 do
 	echo "running on "$dataset
-	for num in 10
+	for num in 10 5 1 20
 	do
 		for reg_exp in 1.0 2.0 10.0 5.0
 		do
