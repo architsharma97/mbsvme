@@ -216,15 +216,32 @@ def init(rows, cols, key='gauss', data=None):
 		print "Accuracy of initialization: " + str(np.mean((np.argmax(softmaxx(np.dot(data, weights.T)), axis=1) == cluster_ids)) * 100)
 		return weights
 
-def process_results(fname, rep):
+def process_results(fname, hypercount=3, splits=10, val=False):
 	f = open(fname, 'r').read().splitlines()
-	idx = 0
-	for _ in range(len(f)/rep):
-		acc = []
-		for _ in range(rep):
-			acc.append(float(f[idx].split(',')[-1]))
-			idx += 1
-		print np.mean(acc), np.std(acc)
+	acc = {}
+
+	for line in f:
+		tokens = line.split(',')
+		line_id = tuple([float(tokens[idx]) for idx in range(1, hypercount+1)]) 
+		if line_id not in acc.keys():
+			acc[line_id] = [[] for _ in range(splits)]
+
+		acc[line_id][int(tokens[0])].append(float(tokens[-1]))
+
+	best_config = None
+	for key in acc.keys():
+		if val:
+			std = np.array(acc[key]).std(axis=0)
+			idx = np.argmax(np.array(acc[key]).mean(axis=0))
+			acc[key], std = np.max(np.array(acc[key]).mean(axis=0)), std[idx]
+		else:
+			std = np.max(np.array(acc[key]), axis=1).std()
+			acc[key] = np.max(np.array(acc[key]), axis=1).mean()
+
+		if best_config is None or best_config[0] < acc[key]:
+			best_config = (acc[key], std, key)
+
+	print best_config
 
 def process_results_robust(fname, hypercount=2):
 	f = open(fname, 'r').read().splitlines()
