@@ -25,7 +25,7 @@ def preprocessing(X, preprocess='gauss', return_stats=False):
 	else:
 		return (X - m) / std
 
-def read_data(key='synth', return_split=False, preprocess='gauss'):
+def read_data(key='synth', return_split=False, preprocess='gauss', split_id=-1):
 	if key == 'synth':
 		train = open('../data/synth.tr','r').read().splitlines()[1:]
 		test = open('../data/synth.te', 'r').read().splitlines()[1:]
@@ -75,12 +75,13 @@ def read_data(key='synth', return_split=False, preprocess='gauss'):
 		data = spo.loadmat('../data/benchmarks.mat')[key]
 		
 		# image and splice have 20 splits only, rest have 100 splits
-		if key in ['image', 'splice']:
-			rand_idx = np.random.randint(0, 20)
-		else:
-			rand_idx = np.random.randint(0,100)
+		if split_id == -1:
+			if key in ['image', 'splice']:
+				split_id = np.random.randint(0, 20)
+			else:
+				split_id = np.random.randint(0,100)
 
-		split = rand_idx
+		split = split_id
 		train_indices = data['train'][0][0][split, :]
 		test_indices = data['test'][0][0][split, :]
 

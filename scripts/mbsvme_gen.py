@@ -41,7 +41,7 @@ import numpy as np
 from numpy import linalg as LA
 from scipy.stats import multivariate_normal
 
-from utils import read_data
+from utils import read_data, preprocessing
 
 import argparse
 
@@ -134,6 +134,9 @@ for cur_fold in range(kfold):
 		y = train[:, -1]
 		Xt = test[:, :-1]
 		yt = test[:, -1]
+
+		X, m, std = preprocessing(X, preprocess=args.preprocess, return_stats=True)
+		X, y, Xt, yt = X, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
 
 	# number of experts 
 	K = args.experts

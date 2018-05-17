@@ -48,7 +48,7 @@ import numpy as np
 from numpy import linalg as LA
 from scipy.stats import multivariate_normal
 
-from utils import read_data, init
+from utils import read_data, preprocessing
 import argparse
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -67,6 +67,7 @@ parser.add_argument('-f', '--file_write', type=bool, default=False,
 					help='Write results to a file name, makes one file for one dataset')
 parser.add_argument('-p', '--preprocess', type=str, default='gauss',
 					help='Choose preprocessing: "gauss", "standard" or "none"')
+parser.add_argument('-i', '--split_id', type=int, default=-1, help="-1 implies choose randomly, else return specifid split from dataset")
 args = parser.parse_args()
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -117,7 +118,7 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 	if splitsize * kfold != X.shape[0]:
 		splits[-1] = np.concatenate((X[-(X.shape[0] % kfold):,:], splits[-1]), axis=0)
 else:
-	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
+	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess, split_id=args.split_id)
 
 for cur_fold in range(kfold):
 	if kfold > 1:
@@ -129,6 +130,9 @@ for cur_fold in range(kfold):
 		y = train[:, -1]
 		Xt = test[:, :-1]
 		yt = test[:, -1]
+
+		X, m, std = preprocessing(X, preprocess=args.preprocess, return_stats=True)
+		X, y, Xt, yt = X, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
 
 	# number of experts
 	K = args.experts
@@ -202,5 +206,5 @@ for cur_fold in range(kfold):
 		print "Number of training points: " + str(N)
 		print "Number of test points: " + str(Xt.shape[0])
 	else:
-		f = open("../results/" + str(args.data) + '_pgc.txt' , 'a')
+		f = open("../results/mtry_" + str(args.data) + '_pg.txt' , 'a')
 		f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_val_gate) + ", " + str(args.reg_val_exp) + ", " + str(max_acc) + "\n")

@@ -5,7 +5,7 @@ import numpy as np
 from numpy import linalg as LA
 from scipy.stats import multivariate_normal
 
-from utils import read_data
+from utils import read_data, preprocessing
 import general_hme as hm
 
 import argparse
@@ -74,8 +74,22 @@ elif args.data in ['landmine', 'mnist', 'sentiment']:
 else:
 	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
 
-hme = hm.HME(y, X, yt, Xt, "softmax", bias=False, gate_type="softmax", verbose=False, levels=args.levels, branching=2)
-hme.fit()
-hme_predict = hme.predict(Xt)
+for cur_fold in range(kfold):
+	if kfold > 1:
+		train = np.concatenate([splits[fold] for fold in range(kfold) if fold != cur_fold], axis=0)
+		test = splits[cur_fold]
 
-print np.mean(hme_predict == yt) * 100
+		split = cur_fold
+		X = train[:, :-1]
+		y = train[:, -1]
+		Xt = test[:, :-1]
+		yt = test[:, -1]
+
+		X, m, std = preprocessing(X, preprocess=args.preprocess, return_stats=True)
+		X, y, Xt, yt = X, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
+	
+	hme = hm.HME(y, X, yt, Xt, "softmax", bias=False, gate_type="softmax", verbose=False, levels=args.levels, branching=2)
+	hme.fit()
+	hme_predict = hme.predict(Xt)
+
+	print np.mean(hme_predict == yt) * 100
