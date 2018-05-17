@@ -230,6 +230,9 @@ def process_results(fname, hypercount=3, splits=10, val=False):
 
 	best_config = None
 	for key in acc.keys():
+		data = np.array(acc[key])
+		if len(data.shape) < 2:
+			continue
 		if val:
 			std = np.array(acc[key]).std(axis=0)
 			idx = np.argmax(np.array(acc[key]).mean(axis=0))

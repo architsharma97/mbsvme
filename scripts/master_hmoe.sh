@@ -1,10 +1,10 @@
 #!/bin/bash
-for dataset in wisconsin
+for dataset in pima
 do
 	echo "running on "$dataset
 	for num in 3 4 5 6
 	do
-		for reg_exp in 20.0
+		for reg_exp in 10.0 5.0 2.0
 		do
 			echo $num" expert(s) in use with regularization at "$reg_exp
 			for taskid in {0..0}
