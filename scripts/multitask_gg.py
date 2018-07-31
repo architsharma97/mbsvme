@@ -97,7 +97,7 @@ for iters in range(max_iters):
 		acc[i] = compute_acc(Xt[i], yt[i], i)
 		max_acc[i] = max(max_acc[i], acc[i])
 		if args.file_write == False:
-			print "Test accuracy for task %d: %f" % (i + 1, acc[i])
+			print(("Test accuracy for task %d: %f" % (i + 1, acc[i])))
 
 		# M step
 		aux1[i] = tau_inv[i] * ex_probs[i]
@@ -127,11 +127,11 @@ for iters in range(max_iters):
 # 	print idx + 1, me, np.argmax(me), np.max(me), me.sum()
 
 if args.file_write == False:
-	print "\n\n\n\n"
-	print "Dataset: " + args.data
-	print "Number of experts: " + str(args.experts)
-	print "Maximum accuracy achieved individually: ", max_acc, np.mean(max_acc)
-	print "Maximum average test accuracy achieved: ", max_av_acc
+	print("\n\n\n\n")
+	print(("Dataset: " + args.data))
+	print(("Number of experts: " + str(args.experts)))
+	print(("Maximum accuracy achieved individually: ", max_acc, np.mean(max_acc)))
+	print(("Maximum average test accuracy achieved: ", max_av_acc))
 
 else:
 	f = open("../results/" + str(args.data) + '_multitask_gg.txt' , 'a')

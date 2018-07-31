@@ -35,6 +35,10 @@ parser.add_argument('-s', '--steps', type=int, default=10,
 					help='Number of gradient descent steps for gating network')
 parser.add_argument('-l','--lrate', type=float, default=0.05,
 					help='Learning rate for gradient descent on gating network')
+parser.add_argument('-p', '--preprocess', type=str, default='gauss',
+					help='Choose preprocessing: "gauss", "standard" or "none"')
+parser.add_argument('-f', '--file_write', type=bool, default=False,
+					help='Write results to a file name, makes one file for one dataset')
 args = parser.parse_args()
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -44,39 +48,7 @@ from numpy import linalg as LA
 from scipy.stats import multivariate_normal
 from scipy.optimize import fmin_l_bfgs_b
 
-from utils import read_data
-
-# stability
-eps = 1e-12
-delta = 1e-12
-
-X, y, Xt, yt = read_data(key=args.data)
-# add preprocessing?
-
-# number of experts 
-K = args.experts
-N = X.shape[0]
-dim = X.shape[1]
-max_iters = args.max_iters
-
-# prior over expert weight vector and gate vector
-lambd1 = args.reg_val_exp
-lambd2 = args.reg_val_gate
-
-# number of gradient descent steps per iteration
-smax_iters_per_iter = args.steps
-learning_rate = args.lrate
-
-# parameter initialization
-gate = np.random.randn(K, dim)
-gate[0, :] = 0.
-
-experts = np.random.randn(K, dim)
-
-# expectations to be computed
-ex_probs = np.zeros((N, K))
-
-max_acc = -1.0
+from utils import read_data, preprocessing
 
 # safer softmax
 def softmax(X):
@@ -89,34 +61,138 @@ def compute_acc():
 
 	return np.mean(pred == yt) * 100
 
-for iters in range(max_iters):
-	# E step
-	pred = (np.dot(X, experts.T).T * y).T
-	spred = 1. - pred
-	svm_log_likelihood = -2 * spred * (spred > 0.0)
+def compute_loss(gate, ex_probs, X, lambd2):
+	gate = gate.reshape((K, dim))
+	return -(ex_probs * np.log(softmax(np.dot(X, gate.T)))).sum() + 0.5 * lambd2 * (gate * gate).sum()
 
-	# required expectations 
-	ex_probs = softmax(np.dot(X, gate.T) + svm_log_likelihood)
+def compute_grad(gate, ex_probs, X, lambd2):
+	gate = gate.reshape((K, dim))
+	return (-np.dot(X.T, ex_probs - softmax(np.dot(X, gate.T))).T + lambd2 * gate).flatten()
 
-	# EM for Bayesian SVM can lead to infinity values
-	tau = np.abs(spred)
-	Xmask = tau > delta
-	tau_inv = 1./ (tau + delta * (1 - Xmask))
+# stability
+eps = 1e-12
+delta = 1e-12
 
-	acc = compute_acc()
-	max_acc = max(max_acc, acc)
-	print "Test accuracy: %f" % (acc)
+kfold = 1
+if args.data == 'ijcnn':
+	X, y, Xt, yt = read_data(key=args.data, preprocess=args.preprocess)
+	# val and test split (predefined values)
+	Xv, yv = Xt[:14990, :], yt[:14990]
+	Xt, yt = Xt[14990:], yt[14990:]
+	split = -1
 
-	# M step
-	aux1 = tau_inv * ex_probs
-	aux2 = (1 + tau_inv) * ex_probs
+elif args.data in ['adult', 'landmine_c', 'mnist_c', 'sentiment_c']:
+	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
+	split = -1
 
-	for e in range(K):
-		experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd1 * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
+elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
+	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
+	if args.data == 'parkinsons':
+		kfold = 5
+	else:
+		kfold = 10
 
-	for _ in range(smax_iters_per_iter):
-		cur_softmax = softmax(np.dot(X, gate.T))
-		gradient = np.dot(X.T, ex_probs - cur_softmax).T - lambd2 * gate
-		gate = gate - learning_rate * gradient
+	splitsize = X.shape[0] / kfold
+	splits = [X[i*splitsize:(i+1)*splitsize,:] for i in range(kfold)]
 
-print "Maximum accuracy achieved: " + str(max_acc)
+	# add leftover datapoints to the the last split
+	if splitsize * kfold != X.shape[0]:
+		splits[-1] = np.concatenate((X[-(X.shape[0] % kfold):,:], splits[-1]), axis=0)
+
+elif args.data in ['landmine', 'mnist', 'sentiment']:
+	X, y, Xt, yt = read_data(key=args.data, return_split=False, preprocess=args.preprocess)
+	
+	task_num = {'landmine': 19, 'mnist': 10, 'sentiment': 4}
+
+	# train on each as a single task model
+	if args.task is None:
+		split = taskid = np.random.randint(0, task_num[args.data])
+	else:
+		split = taskid = args.task
+
+	X, y, Xt, yt = X[taskid], y[taskid], Xt[taskid], yt[taskid]
+
+else:
+	X, y, Xt, yt, split = read_data(key=args.data, return_split=True, preprocess=args.preprocess)
+
+for cur_fold in range(kfold):
+	if kfold > 1:
+		train = np.concatenate([splits[fold] for fold in range(kfold) if fold != cur_fold], axis=0)
+		test = splits[cur_fold]
+
+		split = cur_fold
+		X = train[:, :-1]
+		y = train[:, -1]
+		Xt = test[:, :-1]
+		yt = test[:, -1]
+
+		X, m, std = preprocessing(X, preprocess=args.preprocess, return_stats=True)
+		X, y, Xt, yt = X, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
+
+	# number of experts 
+	K = args.experts
+	N = X.shape[0]
+	dim = X.shape[1]
+	max_iters = args.max_iters
+
+	# prior over expert weight vector and gate vector
+	lambd1 = args.reg_val_exp
+	lambd2 = args.reg_val_gate
+
+	# number of gradient descent steps per iteration
+	smax_iters_per_iter = args.steps
+	learning_rate = args.lrate
+
+	# parameter initialization
+	gate = np.random.randn(K, dim)
+	gate[0, :] = 0.
+
+	experts = np.random.randn(K, dim)
+
+	# expectations to be computed
+	ex_probs = np.zeros((N, K))
+
+	max_acc = -1.0
+
+	for iters in range(max_iters):
+		# E step
+		pred = (np.dot(X, experts.T).T * y).T
+		spred = 1. - pred
+		svm_log_likelihood = -2 * spred * (spred > 0.0)
+
+		# required expectations 
+		ex_probs = softmax(np.dot(X, gate.T) + svm_log_likelihood)
+
+		# EM for Bayesian SVM can lead to infinity values
+		tau = np.abs(spred)
+		Xmask = tau > delta
+		tau_inv = 1./ (tau + delta * (1 - Xmask))
+
+		acc = compute_acc()
+		max_acc = max(max_acc, acc)
+		if args.file_write == False:
+				print("Test accuracy: %f" % (acc))
+
+		# M step
+		aux1 = tau_inv * ex_probs
+		aux2 = (1 + tau_inv) * ex_probs
+
+		for e in range(K):
+			experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd1 * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
+
+		loss = lambda param: compute_loss(param, ex_probs, X, lambd2)
+		grad = lambda param: compute_grad(param, ex_probs, X, lambd2)
+
+		gate = fmin_l_bfgs_b(loss, gate.flatten(), fprime=grad, pgtol = 1e-6)
+		gate = gate[0].reshape((K, dim))
+
+		# for _ in range(smax_iters_per_iter):
+		# 	cur_softmax = softmax(np.dot(X, gate.T))
+		# 	gradient = np.dot(X.T, ex_probs - cur_softmax).T - lambd2 * gate
+		# 	gate = gate - learning_rate * gradient
+
+	if args.file_write == False:
+		print("Maximum accuracy achieved: " + str(max_acc))
+	else:
+		f = open("../results/lbfgs/" + str(args.data) + '_gd.txt' , 'a')
+		f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_val_gate) + ", " + str(args.reg_val_exp) + ", " + str(max_acc) + "\n")

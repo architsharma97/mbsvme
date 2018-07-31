@@ -193,6 +193,7 @@ def read_data(key='synth', return_split=False, preprocess='gauss', split_id=-1):
 	else:
 		return X, np.array(y), (np.array(Xt) - m) / std, np.array(yt), split
 
+
 def softmaxx(X):
 	cur = np.exp(X.T - np.max(X, axis=1)).T
 	return (cur.T / cur.sum(axis=1) + 1e-6).T
@@ -213,7 +214,7 @@ def init(rows, cols, key='gauss', data=None):
 			pred = softmaxx(np.dot(data, weights.T))
 			weights += 0.1 * np.dot((labels - pred).T, data) / N
 
-		print "Accuracy of initialization: " + str(np.mean((np.argmax(softmaxx(np.dot(data, weights.T)), axis=1) == cluster_ids)) * 100)
+		print(("Accuracy of initialization: " + str(np.mean((np.argmax(softmaxx(np.dot(data, weights.T)), axis=1) == cluster_ids)) * 100)))
 		return weights
 
 def process_results(fname, hypercount=3, splits=10, val=False):
@@ -223,13 +224,13 @@ def process_results(fname, hypercount=3, splits=10, val=False):
 	for line in f:
 		tokens = line.split(',')
 		line_id = tuple([float(tokens[idx]) for idx in range(1, hypercount+1)]) 
-		if line_id not in acc.keys():
+		if line_id not in list(acc.keys()):
 			acc[line_id] = [[] for _ in range(splits)]
 
 		acc[line_id][int(tokens[0])].append(float(tokens[-1]))
 
 	best_config = None
-	for key in acc.keys():
+	for key in list(acc.keys()):
 		data = np.array(acc[key])
 		if len(data.shape) < 2:
 			continue
@@ -244,7 +245,7 @@ def process_results(fname, hypercount=3, splits=10, val=False):
 		if best_config is None or best_config[0] < acc[key]:
 			best_config = (acc[key], std, key)
 
-	print best_config
+	print(best_config)
 
 def process_results_robust(fname, hypercount=2):
 	f = open(fname, 'r').read().splitlines()
@@ -257,5 +258,5 @@ def process_results_robust(fname, hypercount=2):
 	for line in f:
 		acc[tuple([float(line.split(',')[idx]) for idx in range(1, hypercount + 1)])].append(float(line.split(',')[-1]))
 
-	for key in acc.keys():
-		print 100-np.mean(acc[key]), np.std(acc[key]), len(acc[key])
+	for key in list(acc.keys()):
+		print((100-np.mean(acc[key]), np.std(acc[key]), len(acc[key])))

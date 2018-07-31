@@ -53,6 +53,6 @@ for i in range(50):
 	tr_loss, _ = sess.run([loss, train_step], feed_dict={inp: X, labels: y})
 	test_acc = sess.run([accuracy], feed_dict={inp : Xt, labels: yt})
 	max_acc = max(max_acc, test_acc[0])
-	print "Test Accuracy: " + str(test_acc[0])
+	print("Test Accuracy: " + str(test_acc[0]))
 
-print "Maximum Test Accuracy: " + str(max_acc*100)
+print("Maximum Test Accuracy: " + str(max_acc*100))

@@ -16,7 +16,7 @@ parser.add_argument('-d', '--data', type=str, default='banana',
 					help='Name of the dataset')
 parser.add_argument('-l','--levels', type=int, default=3,
 					help='Number of levels in the tree, starting from 0')
-parser.add_argument('-m', '--max_iters', type=int, default=50,
+parser.add_argument('-m', '--max_iters', type=int, default=100,
 					help='Maximum number of iterations')
 parser.add_argument('-r', '--reg_value', type=float, default=1.0,
 					help='Regularization hyperparameter for prior on expert weight vectors')
@@ -51,7 +51,7 @@ elif args.data in ['parkinsons', 'pima', 'wisconsin', 'sonar']:
 	else:
 		kfold = 10
 
-	splitsize = X.shape[0] / kfold
+	splitsize = X.shape[0] // kfold
 	splits = [X[i*splitsize:(i+1)*splitsize,:] for i in range(kfold)]
 
 	# add leftover datapoints to the the last split
@@ -88,8 +88,8 @@ for cur_fold in range(kfold):
 		X, m, std = preprocessing(X, preprocess=args.preprocess, return_stats=True)
 		X, y, Xt, yt = X, np.array(y), (np.array(Xt) - m) / std, np.array(yt)
 	
-	hme = hm.HME(y, X, yt, Xt, "softmax", bias=False, gate_type="softmax", verbose=False, levels=args.levels, branching=2)
+	hme = hm.HME(y, X, yt, Xt, "softmax", bias=False, gate_type="softmax", verbose=False, levels=args.levels, branching=2, max_iter=args.max_iters)
 	hme.fit()
 	hme_predict = hme.predict(Xt)
 
-	print np.mean(hme_predict == yt) * 100
+	print(np.mean(hme_predict == yt) * 100)

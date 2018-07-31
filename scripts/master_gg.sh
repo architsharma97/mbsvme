@@ -11,7 +11,7 @@ do
 			do
 				for rep in {0..0}
 				do
-					python mbsvme_gen.py -f True -d $dataset -k $num -r $reg_exp --max_iters 60 -p gauss -t $taskid
+					python mbsvme_gg.py -f True -d $dataset -k $num -r $reg_exp --max_iters 60 -p gauss -t $taskid
 				done
 			done
 		done

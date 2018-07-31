@@ -177,14 +177,14 @@ for cur_fold in range(kfold):
 			acc = compute_acc(Xt, yt)
 			max_acc = max(max_acc, acc)
 			if args.file_write == False:
-				print "Test accuracy: %f" % (acc)
+				print("Test accuracy: %f" % (acc))
 		else:
 			acc = compute_acc(Xv, yv)
 			if max_val < acc:
 				max_val = acc
 				max_acc = compute_acc(Xt, yt)
 				if args.file_write == False:
-					print "Test accuracy: %f" % (max_acc)
+					print("Test accuracy: %f" % (max_acc))
 
 		# M step
 		aux1 = tau_inv * ex_probs
@@ -198,13 +198,13 @@ for cur_fold in range(kfold):
 			gate[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux3[:, e])), (X.T * Xmask[:, e]).T) + lambd2 * np.eye(dim)), np.dot(X.T * Xmask[:, e], kappa))
 
 	if args.file_write == False:
-		print "\n\n\n\n"
-		print "Dataset: " + args.data
-		print "Number of experts: " + str(args.experts)
-		print "Maximum accuracy achieved: " + str(max_acc)
-		print "Data dimensionality: " + str(dim)
-		print "Number of training points: " + str(N)
-		print "Number of test points: " + str(Xt.shape[0])
+		print("\n\n\n\n")
+		print("Dataset: " + args.data)
+		print("Number of experts: " + str(args.experts))
+		print("Maximum accuracy achieved: " + str(max_acc))
+		print("Data dimensionality: " + str(dim))
+		print("Number of training points: " + str(N))
+		print("Number of test points: " + str(Xt.shape[0]))
 	else:
 		f = open("../results/mtry_" + str(args.data) + '_pg.txt' , 'a')
 		f.write(str(split) + ", " + str(args.experts) + ", " + str(args.reg_val_gate) + ", " + str(args.reg_val_exp) + ", " + str(max_acc) + "\n")
