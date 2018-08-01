@@ -162,16 +162,20 @@ for cur_fold in range(kfold):
 
 		# required expectations
 		pre_softmax = np.dot(X, gate.T)
-		un_softmax = np.exp(np.clip(pre_softmax, None, 500)) 
+		un_softmax = np.exp(np.clip(pre_softmax, None, 500))
 		ex_probs = softmax(pre_softmax + svm_log_likelihood)
 
-		psi = pre_softmax - np.log((np.zeros((K,N)) + un_softmax.sum(axis=1)).T - un_softmax + delta)
+		reuse = np.log((np.zeros((K,N)) + un_softmax.sum(axis=1)).T - un_softmax + delta)
+		psi = pre_softmax - reuse
 		beta = 0.5 * np.tanh(0.5 * psi) / psi
 
 		# EM for Bayesian SVM can lead to infinity values
 		tau = np.abs(spred)
-		Xmask = tau > delta
-		tau_inv = 1./ (tau + delta * (1 - Xmask))
+		# Xmask = tau > delta
+		# if np.mean(Xmask == False) > 0.0:
+		# 	print ("Yes!, it is worth it", np.mean(Xmask), Xmask)
+
+		tau_inv = 1./ (tau + delta)
 
 		if args.data != 'ijcnn':
 			acc = compute_acc(Xt, yt)
@@ -190,12 +194,13 @@ for cur_fold in range(kfold):
 		aux1 = tau_inv * ex_probs
 		aux2 = (1 + tau_inv) * ex_probs
 		aux3 = beta * ex_probs
-
+		kappa = (0.5 + reuse * beta) * ex_probs
+		
 		for e in range(K):
-			experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd1 * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
-			cur_unnormalized_softmax = np.exp(np.clip(np.dot((X.T * Xmask[:, e]).T, gate.T), None, 500))
-			kappa = (0.5 + np.log((np.zeros((K,N)) + cur_unnormalized_softmax.sum(axis=1)).T - cur_unnormalized_softmax + delta)[:, e] * beta[:, e]) * ex_probs[:, e]
-			gate[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux3[:, e])), (X.T * Xmask[:, e]).T) + lambd2 * np.eye(dim)), np.dot(X.T * Xmask[:, e], kappa))
+			R = LA.cholesky(np.dot(X.T * aux1[:, e], X) + lambd1 * np.eye(dim))
+			experts[e, :] = LA.solve(np.transpose(R), LA.solve(R, (X.T * y * aux2[:, e]).sum(axis=1)))
+			R = LA.cholesky(np.dot(X.T * aux3[:, e], X) + lambd2 * np.eye(dim))
+			gate[e, :] = LA.solve(np.transpose(R), LA.solve(R, np.dot(X.T, kappa[:, e])))
 
 	if args.file_write == False:
 		print("\n\n\n\n")

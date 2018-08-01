@@ -100,6 +100,10 @@ def compute_acc(X, y):
 	pred = 2 * (np.exp(gl[:, -K:]).sum(axis=1) < np.exp(gr[:, -K:]).sum(axis=1)) - 1
 	return np.mean(pred == y) * 100
 
+def inverse_using_cholesky(A, b):
+	R = LA.cholesky(A)
+	return LA.solve(np.transpose(R), LA.solve(R, b))
+
 for cur_fold in range(kfold):
 	if kfold > 1:
 		train = np.concatenate([splits[fold] for fold in range(kfold) if fold != cur_fold], axis=0)
@@ -172,15 +176,15 @@ for cur_fold in range(kfold):
 		example_weights_mat = tau_inv * ex_probs[:, -K:]
 		example_weights_vec = (1 + tau_inv) * ex_probs[:, -K:]
 		for idx in range(K-1, 2*K-1):
-			W[idx, :] = np.dot(LA.inv(np.dot(np.dot(X.T, np.diag(example_weights_mat[:, idx-K+1])), X) + lambd * np.eye(dim)), (X.T * y * example_weights_vec[:, idx-K+1]).sum(axis=1))
+			W[idx, :] = inverse_using_cholesky(np.dot(X.T * example_weights_mat[:, idx-K+1], X) + lambd * np.eye(dim), (X.T * y * example_weights_vec[:, idx-K+1]).sum(axis=1))
 		
 		# M step for non-leaf nodes
 		for idx in reversed(list(range(K-1))):
 			ex_probs[:, idx] = ex_probs[:, idx*2 + 1] + ex_probs[:, idx*2 + 2]
 			example_weights_mat = ex_probs[:, idx*2 + 1] * invtau_l[:, idx] + ex_probs[:, idx*2 + 2] * invtau_r[:, idx]
 			example_weights_vec = ex_probs[:, idx*2 + 2] * (1 + invtau_r[:, idx]) - ex_probs[:, idx*2 + 1] * (1 + invtau_l[:, idx])
-			W[idx, :] = np.dot(LA.inv(np.dot(np.dot(X.T, np.diag(example_weights_mat)), X) + lambd * np.eye(dim)), (X.T * example_weights_vec).sum(axis=1))
-
+			W[idx, :] = inverse_using_cholesky(np.dot(X.T * example_weights_mat, X) + lambd * np.eye(dim), (X.T * example_weights_vec).sum(axis=1))
+	
 	if args.file_write == False:
 		print ("\n\n\n\n")
 		print ("Dataset: " + args.data)

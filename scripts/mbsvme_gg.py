@@ -179,8 +179,7 @@ for cur_fold in range(kfold):
 		
 		# EM for Bayesian SVM can lead to infinity values
 		tau = np.abs(spred)
-		Xmask = tau > delta
-		tau_inv = 1./ (tau + delta * (1 - Xmask))
+		tau_inv = 1./ (tau + delta)
 
 		# expected complete log likelihood
 		# expected_cll = 0.5 * lambd * LA.norm(experts)**2 + (ex_probs * (pred * (tau_inv + 2) - 0.5 * pred**2 + np.log(gate_probs))).sum()
@@ -206,9 +205,12 @@ for cur_fold in range(kfold):
 		gate_prior = Nj / N
 
 		for e in range(K):
-			experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
-			gate_covariance[e, :, :] = np.dot(np.dot(((X.T * Xmask[:,e]).T - gate_mean[e, :]).T, np.diag(ex_probs[:, e])), ((X.T * Xmask[:, e]).T - gate_mean[e, :])) / Nj[e] + eps * np.eye(dim)
-			gate_mean[e, :] = (X.T * ex_probs[:, e] * Xmask[:, e]).sum(axis=1) / Nj[e]
+			# experts[e, :] = np.dot(LA.inv(np.dot(np.dot(X.T * Xmask[:, e], np.diag(aux1[:, e])), (X.T * Xmask[:, e]).T) + lambd * np.eye(dim)), (X.T * y * aux2[:, e] * Xmask[:, e]).sum(axis=1))
+			R = LA.cholesky(np.dot(X.T * aux1[:, e], X) + lambd * np.eye(dim))
+			experts[e, :] = LA.solve(np.transpose(R), LA.solve(R, (X.T * y * aux2[:, e]).sum(axis=1)))
+			
+			gate_covariance[e, :, :] = np.dot((X - gate_mean[e, :]).T * ex_probs[:, e], (X - gate_mean[e, :])) / Nj[e] + eps * np.eye(dim)
+			gate_mean[e, :] = (X.T * ex_probs[:, e]).sum(axis=1) / Nj[e]
 
 	if args.file_write == False:
 		print("\n\n\n\n")
