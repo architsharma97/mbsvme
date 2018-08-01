@@ -1,4 +1,5 @@
 #!/bin/bash
+cd ../
 for h in 2 5 10 15 20 
 do
 	for rep in {0..20}

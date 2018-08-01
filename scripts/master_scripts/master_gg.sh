@@ -1,4 +1,5 @@
 #!/bin/bash
+cd ../
 for dataset in wisconsin
 do
 	echo "running on "$dataset
@@ -11,7 +12,7 @@ do
 			do
 				for rep in {0..0}
 				do
-					python mbsvme_gg.py -f True -d $dataset -k $num -r $reg_exp --max_iters 60 -p gauss -t $taskid
+					python3 mbsvme_gg.py -f True -d $dataset -k $num -r $reg_exp --max_iters 60 -p gauss -t $taskid
 				done
 			done
 		done

@@ -1,4 +1,6 @@
 #!/bin/bash
+
+cd ../
 ds=$1
 for dataset in $ds
 do
@@ -14,7 +16,7 @@ do
 				do
 					for rep in {0..5}
 					do
-						python mbsvme_pg.py -f True -d $dataset -k $num -re $reg_exp -rg $reg_gat --max_iter 60 -i $id
+						python3 mbsvme_pg.py -f True -d $dataset -k $num -re $reg_exp -rg $reg_gat --max_iter 60 -i $id
 					done
 				done
 			done

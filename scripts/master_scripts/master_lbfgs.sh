@@ -1,4 +1,6 @@
 #!/bin/bash
+
+cd ../
 ds=$1
 for dataset in $ds
 do

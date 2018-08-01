@@ -1,4 +1,6 @@
 #!/bin/bash
+cd ../
+
 for dataset in pima
 do
 	echo "running on "$dataset

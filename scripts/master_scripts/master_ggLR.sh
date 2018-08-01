@@ -1,4 +1,5 @@
 #!/bin/bash
+cd ../
 for dataset in breast_cancer
 do
 	echo "running on "$dataset
